@@ -119,7 +119,8 @@ const AdminClientSupportPage = () => {
         .select(`
           *,
           staff:staffId(id, firstName, lastName)
-        `);
+        `)
+        .eq('clientId', clientId);
         
       if (ticketError) {
         console.error("Ticket fetch error:", ticketError);
@@ -127,11 +128,6 @@ const AdminClientSupportPage = () => {
       }
       
       console.log("Tickets fetched:", ticketData);
-      
-      // Filter tickets by clientId (if we have a clientId from params)
-      const filteredTickets = clientId ? 
-        ticketData?.filter(ticket => ticket.clientId === clientId) : 
-        ticketData;
       
       // Fetch staff members for assignment
       const { data: staffData, error: staffError } = await supabase
@@ -151,7 +147,7 @@ const AdminClientSupportPage = () => {
       
       console.log("Staff fetched:", staffData);
       
-      setTickets(filteredTickets as Ticket[]);
+      setTickets(ticketData as Ticket[]);
       setStaffMembers(staffData as StaffMember[]);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -166,7 +162,9 @@ const AdminClientSupportPage = () => {
   };
 
   useEffect(() => {
-    fetchData();
+    if (clientId) {
+      fetchData();
+    }
   }, [clientId]);
 
   const handleCreateTicket = () => {
@@ -224,6 +222,10 @@ const AdminClientSupportPage = () => {
 
   const onSubmit = async (values: TicketFormValues) => {
     try {
+      if (!clientId) {
+        throw new Error("Client ID is missing");
+      }
+      
       if (isEditMode && currentTicket) {
         // Update existing ticket
         const { error } = await supabase
@@ -369,10 +371,10 @@ const AdminClientSupportPage = () => {
   // Create submenu tabs
   const subMenuItems = [
     { value: "overview", label: "Overview", href: `/admin/accounts/clients/${clientId}/overview` },
-    { value: "services", label: "Services", href: `/admin/accounts/clients/services` },
-    { value: "invoices", label: "Invoices", href: `/admin/accounts/clients/invoices` },
-    { value: "support", label: "Support", href: `/admin/accounts/clients/support` },
-    { value: "contacts", label: "Contacts", href: `/admin/accounts/clients/contacts` },
+    { value: "services", label: "Services", href: `/admin/accounts/clients/${clientId}/services` },
+    { value: "invoices", label: "Invoices", href: `/admin/accounts/clients/${clientId}/invoices` },
+    { value: "support", label: "Support", href: `/admin/accounts/clients/${clientId}/support` },
+    { value: "contacts", label: "Contacts", href: `/admin/accounts/clients/${clientId}/contacts` },
   ];
 
   // Set up breadcrumbs for navigation
@@ -380,6 +382,7 @@ const AdminClientSupportPage = () => {
     { label: 'Admin', href: '/admin' },
     { label: 'Accounts', href: '/admin/accounts' },
     { label: 'Clients', href: '/admin/accounts/clients' },
+    { label: clientId ? clientId : 'Client', href: `/admin/accounts/clients/${clientId}/overview` },
     { label: 'Support' }
   ];
 
@@ -390,149 +393,161 @@ const AdminClientSupportPage = () => {
       role="admin"
     >
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Support Tickets</h1>
-          <Button onClick={handleCreateTicket}>
-            <PlusCircle className="h-4 w-4 mr-2" />
-            New Ticket
-          </Button>
-        </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Filters</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search tickets..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+        {!clientId ? (
+          <Card>
+            <CardContent className="py-6">
+              <div className="text-center text-muted-foreground">
+                No client selected. Please select a client to view their support tickets.
               </div>
-              <Select
-                value={statusFilter}
-                onValueChange={(value) => setStatusFilter(value as TicketStatus | 'ALL')}
-              >
-                <SelectTrigger className="w-full sm:w-40">
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">All Statuses</SelectItem>
-                  <SelectItem value="OPEN">Open</SelectItem>
-                  <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                  <SelectItem value="RESOLVED">Resolved</SelectItem>
-                  <SelectItem value="CLOSED">Closed</SelectItem>
-                </SelectContent>
-              </Select>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="flex justify-between items-center">
+              <h1 className="text-2xl font-bold">Support Tickets</h1>
+              <Button onClick={handleCreateTicket}>
+                <PlusCircle className="h-4 w-4 mr-2" />
+                New Ticket
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Support Tickets</CardTitle>
-            <CardDescription>
-              Manage support tickets for this client
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="text-center py-4">Loading tickets...</div>
-            ) : filteredTickets.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">
-                {searchQuery || statusFilter !== 'ALL'
-                  ? "No tickets match your filters"
-                  : "No support tickets found"}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Priority</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead>Assigned To</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredTickets.map((ticket) => (
-                      <TableRow key={ticket.id}>
-                        <TableCell className="font-medium">{ticket.title}</TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(ticket.status)}`}>
-                            {ticket.status.replace('_', ' ')}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityBadgeColor(ticket.priority)}`}>
-                            {ticket.priority}
-                          </span>
-                        </TableCell>
-                        <TableCell>{ticket.category}</TableCell>
-                        <TableCell>{formatDate(ticket.createdAt)}</TableCell>
-                        <TableCell>
-                          <Select
-                            value={ticket.staffId || "unassigned"}
-                            onValueChange={(value) => handleAssignStaff(ticket.id, value === "unassigned" ? null : value)}
-                          >
-                            <SelectTrigger className="w-[180px]">
-                              <SelectValue placeholder="Unassigned" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="unassigned">Unassigned</SelectItem>
-                              {staffMembers.map((staff) => (
-                                <SelectItem key={staff.id} value={staff.id}>
-                                  {staff.firstName} {staff.lastName}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Select
-                              value={ticket.status}
-                              onValueChange={(value) => handleUpdateStatus(ticket.id, value as TicketStatus)}
-                            >
-                              <SelectTrigger className="w-[130px]">
-                                <SelectValue placeholder="Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="OPEN">Open</SelectItem>
-                                <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
-                                <SelectItem value="RESOLVED">Resolved</SelectItem>
-                                <SelectItem value="CLOSED">Closed</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <Button variant="outline" size="sm" onClick={() => handleEditTicket(ticket)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className="text-red-500"
-                              onClick={() => handleDeleteTicket(ticket.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Filters</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search tickets..."
+                      className="pl-8"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+                  <Select
+                    value={statusFilter}
+                    onValueChange={(value) => setStatusFilter(value as TicketStatus | 'ALL')}
+                  >
+                    <SelectTrigger className="w-full sm:w-40">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Statuses</SelectItem>
+                      <SelectItem value="OPEN">Open</SelectItem>
+                      <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                      <SelectItem value="RESOLVED">Resolved</SelectItem>
+                      <SelectItem value="CLOSED">Closed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Support Tickets</CardTitle>
+                <CardDescription>
+                  Manage support tickets for this client
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="text-center py-4">Loading tickets...</div>
+                ) : filteredTickets.length === 0 ? (
+                  <div className="text-center py-4 text-muted-foreground">
+                    {searchQuery || statusFilter !== 'ALL'
+                      ? "No tickets match your filters"
+                      : "No support tickets found"}
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Priority</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Created</TableHead>
+                          <TableHead>Assigned To</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredTickets.map((ticket) => (
+                          <TableRow key={ticket.id}>
+                            <TableCell className="font-medium">{ticket.title}</TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(ticket.status)}`}>
+                                {ticket.status.replace('_', ' ')}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${getPriorityBadgeColor(ticket.priority)}`}>
+                                {ticket.priority}
+                              </span>
+                            </TableCell>
+                            <TableCell>{ticket.category}</TableCell>
+                            <TableCell>{formatDate(ticket.createdAt)}</TableCell>
+                            <TableCell>
+                              <Select
+                                value={ticket.staffId || "unassigned"}
+                                onValueChange={(value) => handleAssignStaff(ticket.id, value === "unassigned" ? null : value)}
+                              >
+                                <SelectTrigger className="w-[180px]">
+                                  <SelectValue placeholder="Unassigned" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="unassigned">Unassigned</SelectItem>
+                                  {staffMembers.map((staff) => (
+                                    <SelectItem key={staff.id} value={staff.id}>
+                                      {staff.firstName} {staff.lastName}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <Select
+                                  value={ticket.status}
+                                  onValueChange={(value) => handleUpdateStatus(ticket.id, value as TicketStatus)}
+                                >
+                                  <SelectTrigger className="w-[130px]">
+                                    <SelectValue placeholder="Status" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="OPEN">Open</SelectItem>
+                                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                                    <SelectItem value="RESOLVED">Resolved</SelectItem>
+                                    <SelectItem value="CLOSED">Closed</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Button variant="outline" size="sm" onClick={() => handleEditTicket(ticket)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-red-500"
+                                  onClick={() => handleDeleteTicket(ticket.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

@@ -23,6 +23,7 @@ import ObserverDashboard from "./pages/dashboards/ObserverDashboard";
 import ClientsPage from "./pages/accounts/ClientsPage";
 import UsersPage from "./pages/accounts/UsersPage";
 import StaffManagementPage from "./pages/accounts/StaffManagementPage";
+import ClientServicesPage from "./pages/accounts/ClientServicesPage";
 
 // Admin Portfolio Pages
 import CategoriesPage from "./pages/portfolio/CategoriesPage";
@@ -75,6 +76,7 @@ const App = () => (
           
           {/* Admin Account Routes */}
           <Route path="/admin/accounts/clients" element={<DashboardRoute element={<ClientsPage />} />} />
+          <Route path="/admin/accounts/clients/services" element={<DashboardRoute element={<ClientServicesPage />} />} />
           <Route path="/admin/accounts/users" element={<DashboardRoute element={<UsersPage />} />} />
           <Route path="/admin/accounts/staff" element={<DashboardRoute element={<StaffManagementPage />} />} />
           

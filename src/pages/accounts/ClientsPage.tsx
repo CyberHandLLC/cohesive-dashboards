@@ -52,6 +52,7 @@ const ClientsPage = () => {
   }, [searchQuery]);
 
   const handleViewClient = (clientId: string) => {
+    // Navigate to the admin view of client profile, not the client's own view
     navigate(`/admin/accounts/clients/${clientId}/overview`);
   };
 

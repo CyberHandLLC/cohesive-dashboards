@@ -88,6 +88,7 @@ const AdminDashboard = () => {
     <DashboardLayout 
       breadcrumbs={breadcrumbs}
       role="admin"
+      title="Dashboard"
     >
       <div className="space-y-8">
         <StatsGrid stats={stats} />

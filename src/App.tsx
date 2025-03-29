@@ -25,6 +25,9 @@ import UsersPage from "./pages/accounts/UsersPage";
 import StaffManagementPage from "./pages/accounts/StaffManagementPage";
 import AdminClientServicesPage from "./pages/accounts/ClientServicesPage";
 
+// Admin Client Pages - Import the new admin client profile page
+import AdminClientProfilePage from "./pages/admin/AdminClientProfilePage";
+
 // Admin Portfolio Pages
 import CategoriesPage from "./pages/portfolio/CategoriesPage";
 import ServicesPage from "./pages/portfolio/ServicesPage";
@@ -81,8 +84,8 @@ const App = () => (
           <Route path="/admin/accounts/users" element={<DashboardRoute element={<UsersPage />} />} />
           <Route path="/admin/accounts/staff" element={<DashboardRoute element={<StaffManagementPage />} />} />
           
-          {/* Client Detail Routes */}
-          <Route path="/admin/accounts/clients/:id/overview" element={<DashboardRoute element={<ClientProfilePage />} />} />
+          {/* Admin Client Detail Routes - Use the AdminClientProfilePage for client overview */}
+          <Route path="/admin/accounts/clients/:id/overview" element={<DashboardRoute element={<AdminClientProfilePage />} />} />
           <Route path="/admin/accounts/clients/services" element={<DashboardRoute element={<AdminClientServicesPage />} />} />
           <Route path="/admin/accounts/clients/invoices" element={<DashboardRoute element={<ClientInvoicesPage />} />} />
           <Route path="/admin/accounts/clients/support" element={<DashboardRoute element={<ClientSupportPage />} />} />

@@ -480,14 +480,14 @@ const AdminClientSupportPage = () => {
                         <TableCell>{formatDate(ticket.createdAt)}</TableCell>
                         <TableCell>
                           <Select
-                            value={ticket.staffId || ''}
-                            onValueChange={(value) => handleAssignStaff(ticket.id, value || null)}
+                            value={ticket.staffId || "unassigned"}
+                            onValueChange={(value) => handleAssignStaff(ticket.id, value === "unassigned" ? null : value)}
                           >
                             <SelectTrigger className="w-[180px]">
                               <SelectValue placeholder="Unassigned" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Unassigned</SelectItem>
+                              <SelectItem value="unassigned">Unassigned</SelectItem>
                               {staffMembers.map((staff) => (
                                 <SelectItem key={staff.id} value={staff.id}>
                                   {staff.firstName} {staff.lastName}
@@ -663,7 +663,7 @@ const AdminClientSupportPage = () => {
                       <FormLabel>Assign To</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
-                        value={field.value || ""}
+                        value={field.value || "unassigned"}
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -671,7 +671,7 @@ const AdminClientSupportPage = () => {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
                           {staffMembers.map((staff) => (
                             <SelectItem key={staff.id} value={staff.id}>
                               {staff.firstName} {staff.lastName}

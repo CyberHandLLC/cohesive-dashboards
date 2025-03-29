@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -620,7 +621,7 @@ const LeadManagementPage = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {staffMembers.map(staff => (
                           <SelectItem key={staff.id} value={staff.id}>
                             {staff.firstName || staff.lastName ? 
@@ -791,7 +792,7 @@ const LeadManagementPage = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {staffMembers.map(staff => (
                           <SelectItem key={staff.id} value={staff.id}>
                             {staff.firstName || staff.lastName ? 
@@ -945,27 +946,33 @@ const LeadManagementPage = () => {
                     </div>
                   </TableCell>
                   <TableCell>{getStatusBadge(lead.status)}</TableCell>
-                  <TableCell>{lead.leadSource || 'Not specified'}</TableCell>
+                  <TableCell>{lead.leadSource || "—"}</TableCell>
                   <TableCell>
                     {lead.assignedTo ? 
-                      (lead.assignedTo.firstName || lead.assignedTo.lastName ? 
-                        `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}` : 
-                        lead.assignedTo.email) : 
-                      'Unassigned'
-                    }
+                      `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() || lead.assignedTo.email 
+                      : "Unassigned"}
                   </TableCell>
                   <TableCell>{formatDate(lead.createdAt)}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {lead.status !== 'CONVERTED' && (
-                        <Button variant="ghost" size="icon" onClick={() => openConvertDialog(lead)}>
-                          <UserPlus className="h-4 w-4" />
-                        </Button>
-                      )}
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(lead)}>
+                    <div className="flex justify-end space-x-1">
+                      <Button variant="outline" size="sm" onClick={() => openEditDialog(lead)}>
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteLead(lead.id)}>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="text-blue-600" 
+                        onClick={() => openConvertDialog(lead)}
+                        disabled={lead.status === 'CONVERTED'}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="text-red-600"
+                        onClick={() => handleDeleteLead(lead.id)}
+                      >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -975,7 +982,7 @@ const LeadManagementPage = () => {
             ) : (
               <TableRow>
                 <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                  {searchQuery ? 'No leads match your search criteria' : 'No leads found'}
+                  No leads found in this category
                 </TableCell>
               </TableRow>
             )}

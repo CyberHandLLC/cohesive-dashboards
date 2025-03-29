@@ -48,12 +48,15 @@ import { Search, Plus, Phone, Mail, UserPlus, Edit, Trash2, Filter } from 'lucid
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 
+type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST';
+type StatusFilter = LeadStatus | 'ALL';
+
 interface Lead {
   id: string;
   name: string;
   email: string;
   phone: string | null;
-  status: 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST';
+  status: LeadStatus;
   leadSource: string | null;
   followUpDate: string | null;
   notes: any | null;
@@ -71,7 +74,7 @@ const LeadManagementPage = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [isConvertDialogOpen, setIsConvertDialogOpen] = useState<boolean>(false);
@@ -452,7 +455,10 @@ const LeadManagementPage = () => {
           </div>
           
           <div className="flex gap-2 w-full sm:w-auto">
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select 
+              value={statusFilter} 
+              onValueChange={(value: StatusFilter) => setStatusFilter(value)}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>

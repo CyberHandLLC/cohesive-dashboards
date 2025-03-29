@@ -23,7 +23,7 @@ import ObserverDashboard from "./pages/dashboards/ObserverDashboard";
 import ClientsPage from "./pages/accounts/ClientsPage";
 import UsersPage from "./pages/accounts/UsersPage";
 import StaffManagementPage from "./pages/accounts/StaffManagementPage";
-import ClientServicesPage from "./pages/accounts/ClientServicesPage";
+import AdminClientServicesPage from "./pages/accounts/ClientServicesPage";
 
 // Admin Portfolio Pages
 import CategoriesPage from "./pages/portfolio/CategoriesPage";
@@ -43,6 +43,7 @@ import ClientProfilePage from "./pages/client/ProfilePage";
 import ClientServicePage from "./pages/client/ServicesPage";
 import ClientInvoicesPage from "./pages/client/InvoicesPage";
 import ClientSupportPage from "./pages/client/SupportPage";
+import ClientContactsPage from "./pages/client/ContactsPage";
 
 // Observer Pages
 import ObserverServicesPage from "./pages/observer/ServicesPage";
@@ -76,9 +77,16 @@ const App = () => (
           
           {/* Admin Account Routes */}
           <Route path="/admin/accounts/clients" element={<DashboardRoute element={<ClientsPage />} />} />
-          <Route path="/admin/accounts/clients/services" element={<DashboardRoute element={<ClientServicesPage />} />} />
+          <Route path="/admin/accounts/clients/services" element={<DashboardRoute element={<AdminClientServicesPage />} />} />
           <Route path="/admin/accounts/users" element={<DashboardRoute element={<UsersPage />} />} />
           <Route path="/admin/accounts/staff" element={<DashboardRoute element={<StaffManagementPage />} />} />
+          
+          {/* Client Detail Routes */}
+          <Route path="/admin/accounts/clients/:id/overview" element={<DashboardRoute element={<ClientProfilePage />} />} />
+          <Route path="/admin/accounts/clients/services" element={<DashboardRoute element={<AdminClientServicesPage />} />} />
+          <Route path="/admin/accounts/clients/invoices" element={<DashboardRoute element={<ClientInvoicesPage />} />} />
+          <Route path="/admin/accounts/clients/support" element={<DashboardRoute element={<ClientSupportPage />} />} />
+          <Route path="/admin/accounts/clients/contacts" element={<DashboardRoute element={<ClientContactsPage />} />} />
           
           {/* Admin Portfolio Routes */}
           <Route path="/admin/portfolio/categories" element={<DashboardRoute element={<CategoriesPage />} />} />

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,12 +9,11 @@ import { useToast } from '@/hooks/use-toast';
 import { CircleDollarSign, Clock, FileText, Package2 } from 'lucide-react';
 import MetricCard from '@/components/dashboard/MetricCard';
 import RecentUpdatesList from '@/components/dashboard/RecentUpdatesList';
-import { DashboardBarChart, DashboardLineChart, DashboardPieChart } from '@/components/dashboard/DashboardCharts';
+import { DashboardCharts, DashboardBarChart, DashboardLineChart, DashboardPieChart } from '@/components/dashboard/DashboardCharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
 import type { UpdateItem } from '@/components/dashboard/RecentUpdatesList';
 
-// Define types for our data
 interface ClientService {
   id: string;
   serviceId: string;
@@ -63,17 +61,14 @@ const ClientDashboard = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mock client ID for demo purposes - would normally come from auth context
   const clientId = '123e4567-e89b-12d3-a456-426614174001';
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       setIsLoading(true);
       try {
-        // In a real app, we'd get the actual client ID from auth
         const userId = '00000000-0000-0000-0000-000000000000';
 
-        // Get client ID from user
         const { data: userData } = await supabase
           .from('User')
           .select('clientId')
@@ -90,7 +85,6 @@ const ClientDashboard = () => {
           return;
         }
 
-        // Fetch client services
         const { data: servicesData } = await supabase
           .from('ClientService')
           .select(`
@@ -103,19 +97,16 @@ const ClientDashboard = () => {
           `)
           .eq('clientId', userData.clientId);
 
-        // Fetch client invoices
         const { data: invoicesData } = await supabase
           .from('Invoice')
           .select('*')
           .eq('clientId', userData.clientId)
           .order('createdAt', { ascending: false });
 
-        // Calculate metrics
         const activeServices = servicesData?.filter(s => s.status === 'ACTIVE').length || 0;
         const totalSpent = invoicesData?.filter(i => i.status === 'PAID').reduce((sum, inv) => sum + inv.amount, 0) || 0;
         const pendingInvoices = invoicesData?.filter(i => i.status === 'PENDING').length || 0;
         
-        // Calculate upcoming renewals (services ending in the next 30 days)
         const now = new Date();
         const thirtyDaysFromNow = new Date();
         thirtyDaysFromNow.setDate(now.getDate() + 30);
@@ -151,7 +142,6 @@ const ClientDashboard = () => {
     fetchDashboardData();
   }, [toast]);
 
-  // Prepare chart data
   const serviceUsageData = dashboardData.services.length > 0
     ? dashboardData.services.reduce((acc: any, service) => {
         const serviceName = service.service?.name || 'Unknown Service';
@@ -163,7 +153,6 @@ const ClientDashboard = () => {
           acc.push({
             name: serviceName,
             value: 1,
-            // Assign a color based on index for visual differentiation
             color: `hsl(${(acc.length * 40) % 360}, 70%, 50%)`
           });
         }
@@ -171,7 +160,6 @@ const ClientDashboard = () => {
       }, [])
     : [{ name: 'No Services', value: 1, color: '#ccc' }];
 
-  // Monthly invoice data
   const monthlyInvoiceData = [
     { name: 'Jan', paid: 1200, pending: 300 },
     { name: 'Feb', paid: 1100, pending: 400 },
@@ -181,7 +169,6 @@ const ClientDashboard = () => {
     { name: 'Jun', paid: 1200, pending: 100 },
   ];
 
-  // Service usage history data
   const serviceUsageHistory = [
     { name: 'Jan', usage: 65 },
     { name: 'Feb', usage: 59 },
@@ -191,7 +178,6 @@ const ClientDashboard = () => {
     { name: 'Jun', usage: 75 },
   ];
 
-  // Create chart configs
   const invoiceChartConfig = {
     paid: { label: 'Paid Invoices', theme: { light: '#4ade80', dark: '#4ade80' } },
     pending: { label: 'Pending Invoices', theme: { light: '#fb923c', dark: '#fb923c' } },
@@ -201,7 +187,6 @@ const ClientDashboard = () => {
     usage: { label: 'Service Usage', theme: { light: '#60a5fa', dark: '#60a5fa' } },
   };
 
-  // Recent updates list items for the dashboard
   const recentUpdates: UpdateItem[] = dashboardData.invoices.slice(0, 5).map(invoice => ({
     id: invoice.id,
     title: `Invoice ${invoice.id.substring(0, 8)}`,
@@ -225,7 +210,6 @@ const ClientDashboard = () => {
       role="client" 
     >
       <div className="space-y-6">
-        {/* Stats overview */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             title="Active Services"
@@ -254,16 +238,13 @@ const ClientDashboard = () => {
           />
         </div>
 
-        {/* Charts and Recent Updates */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {/* Service distribution */}
           <DashboardPieChart
             title="Service Distribution"
             data={serviceUsageData}
             height={300}
           />
 
-          {/* Monthly Invoices */}
           <DashboardBarChart
             title="Monthly Invoices"
             data={monthlyInvoiceData}
@@ -272,7 +253,6 @@ const ClientDashboard = () => {
             config={invoiceChartConfig}
           />
 
-          {/* Recent Updates */}
           <RecentUpdatesList
             title="Recent Invoices & Updates"
             items={recentUpdates}
@@ -280,7 +260,6 @@ const ClientDashboard = () => {
           />
         </div>
 
-        {/* Service Usage Trends */}
         <DashboardLineChart
           title="Service Usage Trends"
           data={serviceUsageHistory}

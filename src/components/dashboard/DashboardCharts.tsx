@@ -1,3 +1,4 @@
+
 import React from "react"
 import {
   Area,
@@ -13,10 +14,13 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  Bar,
+  BarChart
 } from "recharts"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
+// Types for chart components
 interface DashboardChartsProps {
   data: {
     date: string
@@ -30,6 +34,32 @@ interface DashboardChartsProps {
     name: string
     value: number
   }[]
+}
+
+// Common props interface for individual chart components
+interface ChartComponentProps {
+  title: string;
+  height?: number;
+  className?: string;
+}
+
+// Props for line chart
+interface LineChartProps extends ChartComponentProps {
+  data: any[];
+  dataKeys: string[];
+  config?: any;
+}
+
+// Props for bar chart
+interface BarChartProps extends ChartComponentProps {
+  data: any[];
+  dataKeys: string[];
+  config?: any;
+}
+
+// Props for pie chart
+interface PieChartProps extends ChartComponentProps {
+  data: any[];
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -73,7 +103,7 @@ export function DashboardCharts({ data, engagementData, pieData }: DashboardChar
               <XAxis dataKey="date" />
               <YAxis />
               <Tooltip 
-                content={<CustomTooltip />}
+                content={(props) => CustomTooltip(props) as any}
                 contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
                 cursor={{ stroke: "var(--muted)" }}
               />
@@ -93,7 +123,7 @@ export function DashboardCharts({ data, engagementData, pieData }: DashboardChar
               <XAxis dataKey="date" />
               <YAxis />
               <Tooltip 
-                content={<LineCustomTooltip />}
+                content={(props) => LineCustomTooltip(props) as any}
                 contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
                 cursor={{ stroke: "var(--muted)" }}
               />
@@ -111,7 +141,7 @@ export function DashboardCharts({ data, engagementData, pieData }: DashboardChar
             <PieChart>
               <Pie dataKey="value" data={pieData} cx="50%" cy="50%" outerRadius={80} fill="var(--primary)" label />
               <Tooltip 
-                content={<PieCustomTooltip />}
+                content={(props) => PieCustomTooltip(props) as any}
                 contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
               />
             </PieChart>
@@ -165,5 +195,100 @@ const PieCustomTooltip = ({ active, payload, label }: any) => {
         </span>
       </div>
     </div>
+  );
+};
+
+// Export individual chart components
+export const DashboardPieChart = ({ title, data, height = 300, className }: PieChartProps) => {
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={height}>
+          <PieChart>
+            <Pie 
+              dataKey="value" 
+              data={data} 
+              cx="50%" 
+              cy="50%" 
+              outerRadius={80} 
+              fill="var(--primary)" 
+              label 
+            />
+            <Tooltip 
+              content={(props) => PieCustomTooltip(props) as any}
+              contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+export const DashboardBarChart = ({ title, data, dataKeys, height = 300, config, className }: BarChartProps) => {
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={height}>
+          <BarChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip 
+              contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
+              cursor={{ fill: "var(--muted)", fillOpacity: 0.2 }}
+            />
+            <Legend />
+            {dataKeys.map((key, index) => (
+              <Bar 
+                key={key}
+                dataKey={key} 
+                fill={config && config[key]?.theme?.light || `hsl(${index * 40 % 360}, 70%, 50%)`} 
+                name={config && config[key]?.label || key}
+              />
+            ))}
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+};
+
+export const DashboardLineChart = ({ title, data, dataKeys, height = 300, config, className }: LineChartProps) => {
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <ResponsiveContainer width="100%" height={height}>
+          <LineChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="name" />
+            <YAxis />
+            <Tooltip 
+              contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
+              cursor={{ stroke: "var(--muted)" }}
+            />
+            <Legend />
+            {dataKeys.map((key, index) => (
+              <Line 
+                key={key}
+                type="monotone" 
+                dataKey={key} 
+                stroke={config && config[key]?.theme?.light || `hsl(${index * 40 % 360}, 70%, 50%)`} 
+                name={config && config[key]?.label || key}
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   );
 };

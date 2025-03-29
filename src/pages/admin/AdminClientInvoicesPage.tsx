@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -51,7 +50,6 @@ const AdminClientInvoicesPage = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  // Define breadcrumbs for navigation
   const breadcrumbs = [
     { label: 'Admin', href: '/admin' },
     { label: 'Accounts', href: '/admin/accounts' },
@@ -115,7 +113,7 @@ const AdminClientInvoicesPage = () => {
           variant: "destructive",
         });
       } else {
-        setInvoices(data || []);
+        setInvoices(data as Invoice[]);
       }
     } catch (error) {
       console.error('Error in invoice fetch operation:', error);
@@ -173,7 +171,6 @@ const AdminClientInvoicesPage = () => {
   const handleSaveInvoice = async (formData: any) => {
     try {
       if (currentInvoice) {
-        // Update existing invoice
         const { error } = await supabase
           .from('Invoice')
           .update({
@@ -193,7 +190,6 @@ const AdminClientInvoicesPage = () => {
           description: "Invoice updated successfully",
         });
       } else {
-        // Create new invoice
         const { error } = await supabase
           .from('Invoice')
           .insert({
@@ -321,7 +317,6 @@ const AdminClientInvoicesPage = () => {
         </Card>
       </div>
 
-      {/* Invoice Form Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
@@ -340,7 +335,6 @@ const AdminClientInvoicesPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Confirmation Dialog */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>

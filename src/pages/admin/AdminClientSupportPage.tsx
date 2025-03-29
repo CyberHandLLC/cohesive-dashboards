@@ -111,16 +111,27 @@ const AdminClientSupportPage = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
+      console.log("Fetching tickets for client:", clientId);
+      
       // Fetch tickets
       const { data: ticketData, error: ticketError } = await supabase
         .from('SupportTicket')
         .select(`
           *,
           staff:staffId(id, firstName, lastName)
-        `)
-        .eq('clientId', clientId);
-
-      if (ticketError) throw ticketError;
+        `);
+        
+      if (ticketError) {
+        console.error("Ticket fetch error:", ticketError);
+        throw ticketError;
+      }
+      
+      console.log("Tickets fetched:", ticketData);
+      
+      // Filter tickets by clientId (if we have a clientId from params)
+      const filteredTickets = clientId ? 
+        ticketData?.filter(ticket => ticket.clientId === clientId) : 
+        ticketData;
       
       // Fetch staff members for assignment
       const { data: staffData, error: staffError } = await supabase
@@ -133,9 +144,14 @@ const AdminClientSupportPage = () => {
         `)
         .eq('role', 'STAFF');
         
-      if (staffError) throw staffError;
+      if (staffError) {
+        console.error("Staff fetch error:", staffError);
+        throw staffError;
+      }
       
-      setTickets(ticketData as Ticket[]);
+      console.log("Staff fetched:", staffData);
+      
+      setTickets(filteredTickets as Ticket[]);
       setStaffMembers(staffData as StaffMember[]);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -150,9 +166,7 @@ const AdminClientSupportPage = () => {
   };
 
   useEffect(() => {
-    if (clientId) {
-      fetchData();
-    }
+    fetchData();
   }, [clientId]);
 
   const handleCreateTicket = () => {
@@ -324,7 +338,7 @@ const AdminClientSupportPage = () => {
   const filteredTickets = tickets.filter((ticket) => {
     const matchesSearch = 
       ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.description.toLowerCase().includes(searchQuery.toLowerCase());
+      ticket.description?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = statusFilter === 'ALL' || ticket.status === statusFilter;
     
@@ -349,6 +363,112 @@ const AdminClientSupportPage = () => {
       case 'RESOLVED': return 'bg-green-100 text-green-800';
       case 'CLOSED': return 'bg-gray-100 text-gray-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleCreateTicket = () => {
+    setIsEditMode(false);
+    setCurrentTicket(null);
+    form.reset({
+      title: '',
+      description: '',
+      priority: 'MEDIUM',
+      category: 'GENERAL',
+      status: 'OPEN',
+      staffId: null
+    });
+    setIsDialogOpen(true);
+  };
+  
+  const handleEditTicket = (ticket: Ticket) => {
+    setIsEditMode(true);
+    setCurrentTicket(ticket);
+    form.reset({
+      title: ticket.title,
+      description: ticket.description,
+      priority: ticket.priority,
+      category: ticket.category,
+      status: ticket.status,
+      staffId: ticket.staffId
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleDeleteTicket = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('SupportTicket')
+        .delete()
+        .eq('id', id);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Ticket deleted successfully",
+      });
+      
+      setTickets(tickets.filter(ticket => ticket.id !== id));
+    } catch (error) {
+      console.error('Error deleting ticket:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete ticket",
+      });
+    }
+  };
+
+  const handleAssignStaff = async (ticketId: string, staffId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('SupportTicket')
+        .update({ staffId })
+        .eq('id', ticketId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: staffId ? "Ticket assigned successfully" : "Ticket unassigned",
+      });
+      
+      fetchData();
+    } catch (error) {
+      console.error('Error assigning staff:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to assign staff to ticket",
+      });
+    }
+  };
+
+  const handleUpdateStatus = async (ticketId: string, status: TicketStatus) => {
+    try {
+      const { error } = await supabase
+        .from('SupportTicket')
+        .update({ 
+          status,
+          resolvedAt: status === 'RESOLVED' ? new Date().toISOString() : null 
+        })
+        .eq('id', ticketId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: `Ticket status updated to ${status}`,
+      });
+      
+      fetchData();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update ticket status",
+      });
     }
   };
 

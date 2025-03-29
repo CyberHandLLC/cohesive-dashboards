@@ -41,7 +41,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
 import { PlusCircle, Search } from 'lucide-react';
 
-// Define types that match the exact backend enum values
 type ContentType = "NEWS" | "BLOG_POST" | "RESOURCE" | "FAQ";
 type ContentStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
@@ -97,7 +96,6 @@ const ContentManagementPage = () => {
         throw error;
       }
 
-      // When setting content items, ensure the type matches the backend
       setContentItems(data as ContentItem[]);
     } catch (error) {
       console.error("Error fetching content:", error);
@@ -115,10 +113,8 @@ const ContentManagementPage = () => {
     fetchContentItems();
   }, []);
 
-  // When creating new content, use the correct enum values:
   const onSubmit = async (values: ContentForm) => {
     try {
-      // Map the form content type to the exact expected backend value
       let backendContentType: ContentType;
       switch (values.contentType) {
         case "BLOG":
@@ -137,7 +133,7 @@ const ContentManagementPage = () => {
         .from('Content')
         .insert([
           {
-            authorId: "123", // This should be a real user ID in production
+            authorId: "123",
             title: values.title,
             body: values.body,
             contentType: backendContentType,
@@ -156,7 +152,6 @@ const ContentManagementPage = () => {
         description: "Content item created successfully",
       });
 
-      // Refresh content list
       fetchContentItems();
       setIsDialogOpen(false);
       form.reset();

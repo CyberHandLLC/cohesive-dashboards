@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -43,7 +42,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
 import { PlusCircle, Search } from 'lucide-react';
 
-// Define TypeScript types for ticket properties
 type TicketPriority = "LOW" | "MEDIUM" | "HIGH";
 type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
 type TicketCategory = "BILLING" | "TECHNICAL" | "GENERAL";
@@ -60,7 +58,7 @@ interface Ticket {
   resolvedAt: string | null;
   clientId: string;
   staffId: string | null;
-  comments: any; // Using any for simplicity, could be more strictly typed
+  comments: any;
   staff?: {
     id: string;
     firstName: string;
@@ -98,7 +96,7 @@ const SupportPage = () => {
       const { data: clientData } = await supabase
         .from('User')
         .select('clientId')
-        .eq('id', '00000000-0000-0000-0000-000000000000') // Replace with actual user ID when auth is implemented
+        .eq('id', '00000000-0000-0000-0000-000000000000')
         .single();
 
       if (clientData?.clientId) {
@@ -114,7 +112,6 @@ const SupportPage = () => {
           throw error;
         }
 
-        // Type assertion to handle the staff join result
         const ticketsData = data as unknown as Ticket[];
         setTickets(ticketsData);
       } else {
@@ -142,11 +139,10 @@ const SupportPage = () => {
 
   const onSubmit = async (values: TicketFormValues) => {
     try {
-      // First get the client ID from the user table
       const { data: userData } = await supabase
         .from('User')
         .select('clientId')
-        .eq('id', '00000000-0000-0000-0000-000000000000') // Replace with actual user ID when auth is implemented
+        .eq('id', '00000000-0000-0000-0000-000000000000')
         .single();
 
       if (!userData?.clientId) {
@@ -173,7 +169,6 @@ const SupportPage = () => {
         description: "Support ticket created successfully",
       });
 
-      // Refresh ticket list
       fetchTickets();
       setIsDialogOpen(false);
       form.reset();

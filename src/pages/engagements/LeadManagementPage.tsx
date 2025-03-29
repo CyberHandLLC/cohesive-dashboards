@@ -763,7 +763,7 @@ const LeadManagementPage = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="NONE">None</SelectItem>
                         <SelectItem value="WEBSITE">Website</SelectItem>
                         <SelectItem value="REFERRAL">Referral</SelectItem>
                         <SelectItem value="ADVERTISEMENT">Advertisement</SelectItem>
@@ -791,7 +791,7 @@ const LeadManagementPage = () => {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">Unassigned</SelectItem>
+                        <SelectItem value="UNASSIGNED">Unassigned</SelectItem>
                         {staffMembers.map(staff => (
                           <SelectItem key={staff.id} value={staff.id}>
                             {staff.firstName || staff.lastName ? 

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -40,9 +42,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { PlusCircle, Search } from 'lucide-react';
-import { Database } from '@/integrations/supabase/types';
 
-// Define types that match the exact backend enum values
 type ContactType = "PRIMARY" | "BILLING" | "TECHNICAL" | "SUPPORT";
 type ContactStatus = "ACTIVE" | "INACTIVE";
 type ContactMethod = "EMAIL" | "PHONE";
@@ -74,7 +74,7 @@ interface Contact {
   updatedAt: string;
 }
 
-const SupportPage = () => {
+const ContactsPage = () => {
   const { toast } = useToast();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -440,4 +440,4 @@ const SupportPage = () => {
   );
 };
 
-export default SupportPage;
+export default ContactsPage;

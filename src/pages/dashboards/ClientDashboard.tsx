@@ -13,6 +13,7 @@ import RecentUpdatesList from '@/components/dashboard/RecentUpdatesList';
 import { DashboardBarChart, DashboardLineChart, DashboardPieChart } from '@/components/dashboard/DashboardCharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import type { ChartConfig } from '@/components/ui/chart';
+import type { UpdateItem } from '@/components/dashboard/RecentUpdatesList';
 
 // Define types for our data
 interface ClientService {
@@ -201,15 +202,15 @@ const ClientDashboard = () => {
   };
 
   // Recent updates list items for the dashboard
-  const recentUpdates = dashboardData.invoices.slice(0, 5).map(invoice => ({
+  const recentUpdates: UpdateItem[] = dashboardData.invoices.slice(0, 5).map(invoice => ({
     id: invoice.id,
     title: `Invoice ${invoice.id.substring(0, 8)}`,
     description: `Amount: $${invoice.amount}`,
     date: new Date(invoice.createdAt),
     badge: {
       text: invoice.status,
-      variant: invoice.status === 'PAID' ? 'default' : 
-               invoice.status === 'PENDING' ? 'secondary' : 'outline'
+      variant: invoice.status === 'PAID' ? 'success' : 
+               invoice.status === 'PENDING' ? 'warning' : 'outline'
     },
   }));
 

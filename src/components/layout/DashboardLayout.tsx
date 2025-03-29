@@ -12,6 +12,7 @@ interface DashboardLayoutProps {
   subMenuItems?: SubMenuItem[];
   subMenuBasePath?: string;
   role?: 'admin' | 'staff' | 'client' | 'observer';
+  title?: string;  // Added title prop
 }
 
 const DashboardLayout = ({
@@ -20,6 +21,7 @@ const DashboardLayout = ({
   subMenuItems,
   subMenuBasePath = '',
   role = 'admin',
+  title,  // Add title to props
 }: DashboardLayoutProps) => {
   return (
     <div className="flex h-screen w-full flex-col">
@@ -33,6 +35,13 @@ const DashboardLayout = ({
             {breadcrumbs && breadcrumbs.length > 0 && (
               <div className="mb-4">
                 <Breadcrumbs items={breadcrumbs} />
+              </div>
+            )}
+            
+            {/* Show title if provided */}
+            {title && (
+              <div className="mb-6">
+                <h1 className="text-2xl font-semibold">{title}</h1>
               </div>
             )}
             

@@ -1,203 +1,169 @@
+import React from "react"
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ComposedChart,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts"
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, TooltipProps } from 'recharts';
-import { cn } from '@/lib/utils';
-import type { ChartConfig } from '@/components/ui/chart';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-interface ChartData {
-  name: string;
-  [key: string]: string | number;
+interface DashboardChartsProps {
+  data: {
+    date: string
+    revenue: number
+  }[]
+  engagementData: {
+    date: string
+    engagement: number
+  }[]
+  pieData: {
+    name: string
+    value: number
+  }[]
 }
 
-interface DashboardLineChartProps {
-  data: ChartData[];
-  title: string;
-  height?: number | string;
-  dataKeys: string[];
-  showGrid?: boolean;
-  config?: Record<string, { label?: React.ReactNode; theme?: Record<"light" | "dark", string> }>;
-  className?: string;
-}
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) {
+    return null;
+  }
 
-export const DashboardLineChart = ({
-  data,
-  title,
-  height = 300,
-  dataKeys,
-  showGrid = true,
-  config = {},
-  className
-}: DashboardLineChartProps) => {
   return (
-    <Card className={cn(className)}>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div style={{ height, width: '100%' }}>
-          <ChartContainer config={config as ChartConfig}>
-            <LineChart data={data}>
-              {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-              <XAxis dataKey="name" />
+    <div className="rounded-lg border bg-background p-2 shadow-sm">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col">
+          <span className="text-[0.70rem] uppercase text-muted-foreground">
+            Date
+          </span>
+          <span className="font-bold text-muted-foreground">
+            {label}
+          </span>
+        </div>
+        <div className="flex flex-col">
+          <span className="text-[0.70rem] uppercase text-muted-foreground">
+            Revenue
+          </span>
+          <span className="font-bold">${payload[0].value}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export function DashboardCharts({ data, engagementData, pieData }: DashboardChartsProps) {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+      <Card className="col-span-1 md:col-span-2 lg:col-span-4">
+        <CardHeader>
+          <CardTitle>Revenue</CardTitle>
+        </CardHeader>
+        <CardContent className="pl-2">
+          <ResponsiveContainer width="100%" height={350}>
+            <AreaChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
               <YAxis />
               <Tooltip 
-                content={(props) => {
-                  if (!props.active || !props.payload) return null;
-                  // Cast to any to avoid TypeScript errors with the custom tooltip
-                  return <ChartTooltipContent {...props} />;
-                }}
+                content={<CustomTooltip />}
+                contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
+                cursor={{ stroke: "var(--muted)" }}
               />
-              <Legend />
-              {dataKeys.map((key) => (
-                <Line 
-                  key={key} 
-                  type="monotone" 
-                  dataKey={key} 
-                  stroke={`var(--color-${key})`} 
-                  activeDot={{ r: 8 }} 
-                  strokeWidth={2}
-                />
-              ))}
+              <Area type="monotone" dataKey="revenue" stroke="var(--primary)" fill="var(--primary)" fillOpacity={0.3} />
+            </AreaChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      <Card className="col-span-1 md:col-span-2 lg:col-span-3">
+        <CardHeader>
+          <CardTitle>Engagement</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={350}>
+            <LineChart data={engagementData} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" />
+              <YAxis />
+              <Tooltip 
+                content={<LineCustomTooltip />}
+                contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
+                cursor={{ stroke: "var(--muted)" }}
+              />
+              <Line type="monotone" dataKey="engagement" stroke="var(--primary)" />
             </LineChart>
-          </ChartContainer>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-interface DashboardBarChartProps {
-  data: ChartData[];
-  title: string;
-  height?: number | string;
-  dataKeys: string[];
-  showGrid?: boolean;
-  config?: Record<string, { label?: React.ReactNode; theme?: Record<"light" | "dark", string> }>;
-  className?: string;
-  stacked?: boolean;
-}
-
-export const DashboardBarChart = ({
-  data,
-  title,
-  height = 300,
-  dataKeys,
-  showGrid = true,
-  config = {},
-  className,
-  stacked = false
-}: DashboardBarChartProps) => {
-  return (
-    <Card className={cn(className)}>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div style={{ height, width: '100%' }}>
-          <ChartContainer config={config as ChartConfig}>
-            <BarChart data={data}>
-              {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip 
-                content={(props) => {
-                  if (!props.active || !props.payload) return null;
-                  // Cast to any to avoid TypeScript errors with the custom tooltip
-                  return <ChartTooltipContent {...props} />;
-                }}
-              />
-              <Legend />
-              {dataKeys.map((key) => (
-                <Bar 
-                  key={key} 
-                  dataKey={key} 
-                  fill={`var(--color-${key})`}
-                  fillOpacity={0.9}
-                  stackId={stacked ? "stack" : undefined}
-                />
-              ))}
-            </BarChart>
-          </ChartContainer>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-interface PieChartData {
-  name: string;
-  value: number;
-  color?: string;
-}
-
-interface DashboardPieChartProps {
-  data: PieChartData[];
-  title: string;
-  height?: number | string;
-  config?: Record<string, { label?: React.ReactNode; theme?: Record<"light" | "dark", string> }>;
-  className?: string;
-  innerRadius?: number;
-}
-
-export const DashboardPieChart = ({
-  data,
-  title,
-  height = 300,
-  config = {},
-  className,
-  innerRadius = 0
-}: DashboardPieChartProps) => {
-  const colors = data.map(item => item.color || `var(--color-${item.name.replace(/\s+/g, '')})`);
-  
-  // Convert data to proper config format for ChartContainer
-  const chartConfig: Record<string, { label?: React.ReactNode; theme?: Record<"light" | "dark", string> }> = {};
-  data.forEach(item => {
-    const key = item.name.replace(/\s+/g, '');
-    chartConfig[key] = { 
-      label: item.name,
-      theme: { light: item.color || "#333", dark: item.color || "#ccc" }
-    };
-  });
-
-  return (
-    <Card className={cn(className)}>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div style={{ height, width: '100%' }}>
-          <ChartContainer config={chartConfig as ChartConfig}>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+      <Card className="col-span-1 md:col-span-2 lg:col-span-7">
+        <CardHeader>
+          <CardTitle>Traffic Source</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={350}>
             <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                outerRadius={80}
-                innerRadius={innerRadius}
-                fill="#8884d8"
-                dataKey="value"
-                nameKey="name"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color || colors[index % colors.length]} />
-                ))}
-              </Pie>
+              <Pie dataKey="value" data={pieData} cx="50%" cy="50%" outerRadius={80} fill="var(--primary)" label />
               <Tooltip 
-                content={(props) => {
-                  if (!props.active || !props.payload) return null;
-                  // Cast to any to avoid TypeScript errors with the custom tooltip
-                  return <ChartTooltipContent {...props} />;
-                }}
+                content={<PieCustomTooltip />}
+                contentStyle={{ backgroundColor: "transparent", border: "none", boxShadow: "none" }}
               />
-              <Legend />
             </PieChart>
-          </ChartContainer>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+const LineCustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border bg-background p-2 shadow-sm">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col">
+          <span className="text-[0.70rem] uppercase text-muted-foreground">
+            Date
+          </span>
+          <span className="font-bold text-muted-foreground">
+            {label}
+          </span>
         </div>
-      </CardContent>
-    </Card>
+        <div className="flex flex-col">
+          <span className="text-[0.70rem] uppercase text-muted-foreground">
+            Engagement
+          </span>
+          <span className="font-bold">{payload[0].value}%</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PieCustomTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload || !payload.length) {
+    return null;
+  }
+
+  return (
+    <div className="rounded-lg border bg-background p-2 shadow-sm">
+      <div className="flex flex-col">
+        <span className="text-[0.70rem] uppercase text-muted-foreground">
+          {payload[0].name}
+        </span>
+        <span className="font-bold">
+          {payload[0].value}%
+        </span>
+      </div>
+    </div>
   );
 };

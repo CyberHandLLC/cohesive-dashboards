@@ -2,279 +2,253 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
+type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'PAST';
+
+interface Client {
+  id: string;
+  companyName: string;
+  status: ClientStatus;
+  industry: string;
+  websiteUrl: string | null;
+  serviceStartDate: string | null;
+  serviceEndDate: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 const AdminClientProfilePage = () => {
-  const { id: clientId } = useParams();
-  const [client, setClient] = useState({
-    id: '',
-    companyName: '',
-    websiteUrl: '',
-    industry: '',
-    status: '',
-    serviceStartDate: '',
-    serviceEndDate: '',
-    notes: ''
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const { toast } = useToast();
+  const { id } = useParams<{ id: string }>();
+  const [client, setClient] = useState<Client | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [activeTab, setActiveTab] = useState('overview');
   
+  // Define breadcrumbs for navigation
   const breadcrumbs = [
     { label: 'Admin', href: '/admin' },
     { label: 'Accounts', href: '/admin/accounts' },
     { label: 'Clients', href: '/admin/accounts/clients' },
-    { label: client.companyName || 'Client Profile' }
+    { label: client?.companyName || 'Client Details' }
   ];
   
+  const subMenuItems = [
+    { label: 'Overview', value: 'overview' },
+    { label: 'Services', value: 'services' },
+    { label: 'Invoices', value: 'invoices' },
+    { label: 'Support', value: 'support' },
+    { label: 'Contacts', value: 'contacts' },
+  ];
+
   useEffect(() => {
     const fetchClientDetails = async () => {
-      if (!clientId) return;
+      if (!id) return;
       
-      setLoading(true);
+      setIsLoading(true);
       try {
         const { data, error } = await supabase
           .from('Client')
           .select('*')
-          .eq('id', clientId)
+          .eq('id', id)
           .single();
           
         if (error) {
-          throw error;
-        }
-        
-        if (data) {
-          setClient({
-            id: data.id,
-            companyName: data.companyName || '',
-            websiteUrl: data.websiteUrl || '',
-            industry: data.industry || '',
-            status: data.status || '',
-            serviceStartDate: data.serviceStartDate ? new Date(data.serviceStartDate).toISOString().split('T')[0] : '',
-            serviceEndDate: data.serviceEndDate ? new Date(data.serviceEndDate).toISOString().split('T')[0] : '',
-            notes: data.notes || ''
-          });
+          console.error('Error fetching client details:', error);
+        } else {
+          setClient(data);
         }
       } catch (error) {
-        console.error('Error fetching client details:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load client details",
-          variant: "destructive",
-        });
+        console.error('Error in client fetch operation:', error);
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
     
     fetchClientDetails();
-  }, [clientId, toast]);
-  
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setClient(prev => ({ ...prev, [name]: value }));
+  }, [id]);
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Not set';
+    return new Date(dateString).toLocaleDateString();
   };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    
-    try {
-      const { error } = await supabase
-        .from('Client')
-        .update({
-          companyName: client.companyName,
-          websiteUrl: client.websiteUrl,
-          industry: client.industry,
-          status: client.status,
-          serviceStartDate: client.serviceStartDate || null,
-          serviceEndDate: client.serviceEndDate || null,
-          notes: client.notes,
-          updatedAt: new Date()
-        })
-        .eq('id', clientId);
-        
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: "Client profile has been updated",
-      });
-    } catch (error) {
-      console.error('Error updating client:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update client profile",
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
+
+  const getStatusBadge = (status: ClientStatus) => {
+    switch(status) {
+      case 'ACTIVE':
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+      case 'INACTIVE':
+        return <Badge className="bg-amber-100 text-amber-800">Inactive</Badge>;
+      case 'PAST':
+        return <Badge className="bg-gray-100 text-gray-800">Past</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   return (
     <DashboardLayout 
-      breadcrumbs={breadcrumbs}
+      breadcrumbs={breadcrumbs} 
       role="admin"
-      title={`Client: ${client.companyName}`}
+      title={client?.companyName || 'Client Details'}
     >
-      <div className="space-y-6">
-        <Tabs defaultValue="overview" className="w-full">
-          <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="services">Services</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="contacts">Contacts</TabsTrigger>
-            <TabsTrigger value="support">Support</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="overview" className="space-y-4 pt-4">
-            <Card>
-              <form onSubmit={handleSubmit}>
-                <CardHeader>
-                  <CardTitle>Client Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {loading ? (
-                    <div className="flex justify-center py-4">Loading client data...</div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="companyName">Company Name</Label>
-                        <Input 
-                          id="companyName"
-                          name="companyName"
-                          value={client.companyName}
-                          onChange={handleChange}
-                        />
+      {isLoading ? (
+        <div className="flex justify-center py-8">
+          <p>Loading client details...</p>
+        </div>
+      ) : client ? (
+        <div className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="mb-4">
+              {subMenuItems.map((item) => (
+                <TabsTrigger key={item.value} value={item.value}>
+                  {item.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            
+            <TabsContent value="overview">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {getStatusBadge(client.status)}
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Industry</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>{client.industry || 'Not specified'}</p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Service Start</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>{formatDate(client.serviceStartDate)}</p>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium">Service End</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p>{formatDate(client.serviceEndDate)}</p>
+                  </CardContent>
+                </Card>
+              </div>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Client Details</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {client.websiteUrl && (
+                      <div>
+                        <h4 className="font-medium">Website</h4>
+                        <a 
+                          href={client.websiteUrl.startsWith('http') ? client.websiteUrl : `https://${client.websiteUrl}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {client.websiteUrl}
+                        </a>
                       </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="industry">Industry</Label>
-                        <Input 
-                          id="industry"
-                          name="industry"
-                          value={client.industry}
-                          onChange={handleChange}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="websiteUrl">Website</Label>
-                        <Input 
-                          id="websiteUrl"
-                          name="websiteUrl"
-                          value={client.websiteUrl}
-                          onChange={handleChange}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="status">Status</Label>
-                        <Input 
-                          id="status"
-                          name="status"
-                          value={client.status}
-                          onChange={handleChange}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="serviceStartDate">Service Start Date</Label>
-                        <Input 
-                          id="serviceStartDate"
-                          name="serviceStartDate"
-                          type="date"
-                          value={client.serviceStartDate}
-                          onChange={handleChange}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="serviceEndDate">Service End Date</Label>
-                        <Input 
-                          id="serviceEndDate"
-                          name="serviceEndDate"
-                          type="date"
-                          value={client.serviceEndDate}
-                          onChange={handleChange}
-                        />
-                      </div>
-                      <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="notes">Notes</Label>
-                        <Input 
-                          id="notes"
-                          name="notes"
-                          value={client.notes || ''}
-                          onChange={handleChange}
-                        />
-                      </div>
+                    )}
+                    
+                    <div>
+                      <h4 className="font-medium">Client Since</h4>
+                      <p>{formatDate(client.createdAt)}</p>
                     </div>
-                  )}
+                    
+                    {client.notes && (
+                      <div>
+                        <h4 className="font-medium">Notes</h4>
+                        <p className="text-muted-foreground">{client.notes}</p>
+                      </div>
+                    )}
+                    
+                    <Button variant="outline" className="mt-2">
+                      Edit Client Details
+                    </Button>
+                  </CardContent>
+                </Card>
+                
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground">No recent activity to display.</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="services">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Services</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">Client services will be displayed here.</p>
                 </CardContent>
-                <CardFooter>
-                  <Button type="submit" disabled={loading || saving}>
-                    {saving ? "Saving..." : "Save Changes"}
-                  </Button>
-                </CardFooter>
-              </form>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="services">
-            <Card>
-              <CardHeader>
-                <CardTitle>Client Services</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Services for this client will be displayed here.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="invoices">
-            <Card>
-              <CardHeader>
-                <CardTitle>Client Invoices</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Invoices for this client will be displayed here.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="contacts">
-            <Card>
-              <CardHeader>
-                <CardTitle>Client Contacts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Contact information for this client will be displayed here.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          <TabsContent value="support">
-            <Card>
-              <CardHeader>
-                <CardTitle>Support Tickets</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">
-                  Support tickets for this client will be displayed here.
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </div>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="invoices">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Invoices</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">Client invoices will be displayed here.</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="support">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Support Tickets</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">Support tickets will be displayed here.</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="contacts">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Contacts</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">Client contacts will be displayed here.</p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+      ) : (
+        <div className="flex justify-center py-8">
+          <p>Client not found</p>
+        </div>
+      )}
     </DashboardLayout>
   );
 };

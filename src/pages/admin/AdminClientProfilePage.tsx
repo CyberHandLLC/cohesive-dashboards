@@ -1,12 +1,25 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
+import { 
+  CalendarIcon, 
+  Building, 
+  Globe, 
+  FileText, 
+  Package2, 
+  CircleDollarSign, 
+  MessageSquare,
+  Users, 
+  Edit
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { SubMenuItem } from '@/components/navigation/SubMenuTabs';
 
 type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'PAST';
 
@@ -14,7 +27,7 @@ interface Client {
   id: string;
   companyName: string;
   status: ClientStatus;
-  industry: string;
+  industry: string | null;
   websiteUrl: string | null;
   serviceStartDate: string | null;
   serviceEndDate: string | null;
@@ -23,11 +36,37 @@ interface Client {
   updatedAt: string;
 }
 
+interface ClientMetrics {
+  serviceCount: number;
+  invoiceCount: number;
+  openTicketsCount: number;
+  contactsCount: number;
+}
+
+interface ClientContact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string | null;
+  role: string | null;
+  isPrimary: boolean;
+}
+
 const AdminClientProfilePage = () => {
   const { id } = useParams<{ id: string }>();
   const [client, setClient] = useState<Client | null>(null);
+  const [contacts, setContacts] = useState<ClientContact[]>([]);
+  const [metrics, setMetrics] = useState<ClientMetrics>({
+    serviceCount: 0,
+    invoiceCount: 0,
+    openTicketsCount: 0,
+    contactsCount: 0
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState('overview');
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
   // Define breadcrumbs for navigation
   const breadcrumbs = [
@@ -37,40 +76,107 @@ const AdminClientProfilePage = () => {
     { label: client?.companyName || 'Client Details' }
   ];
   
-  const subMenuItems = [
-    { label: 'Overview', value: 'overview' },
-    { label: 'Services', value: 'services' },
-    { label: 'Invoices', value: 'invoices' },
-    { label: 'Support', value: 'support' },
-    { label: 'Contacts', value: 'contacts' },
+  const subMenuItems: SubMenuItem[] = [
+    { label: 'Overview', href: `/admin/accounts/clients/${id}/overview`, value: 'overview' },
+    { label: 'Services', href: `/admin/accounts/clients/services?clientId=${id}`, value: 'services' },
+    { label: 'Invoices', href: `/admin/accounts/clients/invoices?clientId=${id}`, value: 'invoices' },
+    { label: 'Support', href: `/admin/accounts/clients/support?clientId=${id}`, value: 'support' },
+    { label: 'Contacts', href: `/admin/accounts/clients/contacts?clientId=${id}`, value: 'contacts' },
   ];
 
   useEffect(() => {
-    const fetchClientDetails = async () => {
-      if (!id) return;
-      
-      setIsLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('Client')
-          .select('*')
-          .eq('id', id)
-          .single();
-          
-        if (error) {
-          console.error('Error fetching client details:', error);
-        } else {
-          setClient(data);
-        }
-      } catch (error) {
-        console.error('Error in client fetch operation:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchClientDetails();
+    if (id) {
+      fetchClientDetails();
+      fetchClientMetrics();
+      fetchClientContacts();
+    }
   }, [id]);
+
+  const fetchClientDetails = async () => {
+    if (!id) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('Client')
+        .select('*')
+        .eq('id', id)
+        .single();
+        
+      if (error) {
+        console.error('Error fetching client details:', error);
+        toast({
+          title: "Error",
+          description: "Could not fetch client details",
+          variant: "destructive",
+        });
+      } else {
+        setClient(data);
+      }
+    } catch (error) {
+      console.error('Error in client fetch operation:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchClientMetrics = async () => {
+    if (!id) return;
+    
+    try {
+      // Get service count
+      const { count: serviceCount, error: serviceError } = await supabase
+        .from('ClientService')
+        .select('*', { count: 'exact', head: true })
+        .eq('clientId', id);
+      
+      // Get invoice count
+      const { count: invoiceCount, error: invoiceError } = await supabase
+        .from('Invoice')
+        .select('*', { count: 'exact', head: true })
+        .eq('clientId', id);
+      
+      // Get open support tickets count
+      const { count: ticketsCount, error: ticketsError } = await supabase
+        .from('SupportTicket')
+        .select('*', { count: 'exact', head: true })
+        .eq('clientId', id)
+        .eq('status', 'OPEN');
+      
+      // Get contacts count
+      const { count: contactsCount, error: contactsError } = await supabase
+        .from('Contact')
+        .select('*', { count: 'exact', head: true })
+        .eq('clientId', id);
+      
+      setMetrics({
+        serviceCount: serviceCount || 0,
+        invoiceCount: invoiceCount || 0,
+        openTicketsCount: ticketsCount || 0,
+        contactsCount: contactsCount || 0
+      });
+    } catch (error) {
+      console.error('Error fetching client metrics:', error);
+    }
+  };
+
+  const fetchClientContacts = async () => {
+    if (!id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('Contact')
+        .select('id, firstName, lastName, email, phone, role, isPrimary')
+        .eq('clientId', id)
+        .order('isPrimary', { ascending: false });
+      
+      if (!error && data) {
+        setContacts(data);
+      }
+    } catch (error) {
+      console.error('Error fetching client contacts:', error);
+    }
+  };
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not set';
@@ -90,6 +196,26 @@ const AdminClientProfilePage = () => {
     }
   };
 
+  const handleEditClient = () => {
+    // Would open a modal or navigate to edit page
+    toast({
+      title: "Edit Client",
+      description: "Edit functionality will be implemented soon.",
+    });
+  };
+
+  const handleTabClick = (value: string) => {
+    setActiveTab(value);
+    
+    // Navigate based on the selected tab
+    if (value !== 'overview') {
+      const menuItem = subMenuItems.find(item => item.value === value);
+      if (menuItem) {
+        navigate(menuItem.href);
+      }
+    }
+  };
+
   return (
     <DashboardLayout 
       breadcrumbs={breadcrumbs} 
@@ -102,8 +228,8 @@ const AdminClientProfilePage = () => {
         </div>
       ) : client ? (
         <div className="space-y-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="mb-4">
+          <Tabs value={activeTab} onValueChange={handleTabClick} className="w-full">
+            <TabsList className="grid w-full grid-cols-5 mb-6">
               {subMenuItems.map((item) => (
                 <TabsTrigger key={item.value} value={item.value}>
                   {item.label}
@@ -114,133 +240,169 @@ const AdminClientProfilePage = () => {
             <TabsContent value="overview">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Status</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Active Services</CardTitle>
+                    <Package2 className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    {getStatusBadge(client.status)}
+                    <div className="text-2xl font-bold">{metrics.serviceCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Subscribed services
+                    </p>
                   </CardContent>
                 </Card>
                 
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Industry</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Invoices</CardTitle>
+                    <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <p>{client.industry || 'Not specified'}</p>
+                    <div className="text-2xl font-bold">{metrics.invoiceCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Total invoices
+                    </p>
                   </CardContent>
                 </Card>
                 
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Service Start</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Support Tickets</CardTitle>
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <p>{formatDate(client.serviceStartDate)}</p>
+                    <div className="text-2xl font-bold">{metrics.openTicketsCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Open tickets
+                    </p>
                   </CardContent>
                 </Card>
                 
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">Service End</CardTitle>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Contacts</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
-                    <p>{formatDate(client.serviceEndDate)}</p>
+                    <div className="text-2xl font-bold">{metrics.contactsCount}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Registered contacts
+                    </p>
                   </CardContent>
                 </Card>
               </div>
               
               <div className="grid gap-4 md:grid-cols-2">
                 <Card>
-                  <CardHeader>
+                  <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Client Details</CardTitle>
+                    <Button variant="ghost" size="icon" onClick={handleEditClient}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
                   </CardHeader>
                   <CardContent className="space-y-4">
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-muted-foreground">Status</div>
+                      <div>{getStatusBadge(client.status)}</div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-muted-foreground">Industry</div>
+                      <div className="flex items-center">
+                        <Building className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <span>{client.industry || 'Not specified'}</span>
+                      </div>
+                    </div>
+                    
                     {client.websiteUrl && (
-                      <div>
-                        <h4 className="font-medium">Website</h4>
-                        <a 
-                          href={client.websiteUrl.startsWith('http') ? client.websiteUrl : `https://${client.websiteUrl}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          {client.websiteUrl}
-                        </a>
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-muted-foreground">Website</div>
+                        <div className="flex items-center">
+                          <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <a 
+                            href={client.websiteUrl.startsWith('http') ? client.websiteUrl : `https://${client.websiteUrl}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline"
+                          >
+                            {client.websiteUrl}
+                          </a>
+                        </div>
                       </div>
                     )}
                     
-                    <div>
-                      <h4 className="font-medium">Client Since</h4>
-                      <p>{formatDate(client.createdAt)}</p>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-muted-foreground">Service Start</div>
+                        <div className="flex items-center">
+                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>{formatDate(client.serviceStartDate)}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-muted-foreground">Service End</div>
+                        <div className="flex items-center">
+                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                          <span>{formatDate(client.serviceEndDate)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <div className="text-sm font-medium text-muted-foreground">Client Since</div>
+                      <div className="flex items-center">
+                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                        <span>{formatDate(client.createdAt)}</span>
+                      </div>
                     </div>
                     
                     {client.notes && (
-                      <div>
-                        <h4 className="font-medium">Notes</h4>
-                        <p className="text-muted-foreground">{client.notes}</p>
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium text-muted-foreground">Notes</div>
+                        <p className="text-sm">{client.notes}</p>
                       </div>
                     )}
-                    
-                    <Button variant="outline" className="mt-2">
-                      Edit Client Details
-                    </Button>
                   </CardContent>
                 </Card>
                 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
+                    <CardTitle>Primary Contacts</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-muted-foreground">No recent activity to display.</p>
+                    {contacts.length > 0 ? (
+                      <div className="space-y-4">
+                        {contacts.slice(0, 3).map((contact) => (
+                          <div key={contact.id} className="border-b pb-3 last:border-0 last:pb-0">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="font-medium">
+                                {contact.firstName} {contact.lastName}
+                                {contact.isPrimary && (
+                                  <Badge className="ml-2 bg-blue-100 text-blue-800">Primary</Badge>
+                                )}
+                              </div>
+                              {contact.role && <span className="text-xs text-muted-foreground">{contact.role}</span>}
+                            </div>
+                            <div className="text-sm">{contact.email}</div>
+                            {contact.phone && <div className="text-sm">{contact.phone}</div>}
+                          </div>
+                        ))}
+                        
+                        {contacts.length > 3 && (
+                          <div className="text-sm text-center">
+                            <Button variant="ghost" onClick={() => handleTabClick('contacts')}>
+                              View all ({contacts.length}) contacts
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-muted-foreground">No contacts found for this client.</p>
+                    )}
                   </CardContent>
                 </Card>
               </div>
-            </TabsContent>
-            
-            <TabsContent value="services">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Client Services</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">Client services will be displayed here.</p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="invoices">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Client Invoices</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">Client invoices will be displayed here.</p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="support">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Support Tickets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">Support tickets will be displayed here.</p>
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="contacts">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Client Contacts</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">Client contacts will be displayed here.</p>
-                </CardContent>
-              </Card>
             </TabsContent>
           </Tabs>
         </div>

@@ -22,8 +22,8 @@ const ObserverBlogPage = () => {
     },
     {
       id: 2,
-      title: 'How to Improve Your Website's SEO',
-      excerpt: 'Learn actionable strategies to boost your website's search engine rankings and drive more organic traffic.',
+      title: "How to Improve Your Website's SEO",
+      excerpt: "Learn actionable strategies to boost your website's search engine rankings and drive more organic traffic.",
       date: 'May 22, 2023',
       category: 'SEO',
       author: 'John Doe'

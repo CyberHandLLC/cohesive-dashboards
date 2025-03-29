@@ -28,6 +28,7 @@ import AdminClientServicesPage from "./pages/accounts/ClientServicesPage";
 // Admin Client Pages - Import the new admin client profile page
 import AdminClientProfilePage from "./pages/admin/AdminClientProfilePage";
 import AdminClientInvoicesPage from "./pages/admin/AdminClientInvoicesPage";
+import AdminClientSupportPage from "./pages/admin/AdminClientSupportPage";
 
 // Admin Portfolio Pages
 import CategoriesPage from "./pages/portfolio/CategoriesPage";
@@ -89,7 +90,7 @@ const App = () => (
           <Route path="/admin/accounts/clients/:id/overview" element={<DashboardRoute element={<AdminClientProfilePage />} />} />
           <Route path="/admin/accounts/clients/services" element={<DashboardRoute element={<AdminClientServicesPage />} />} />
           <Route path="/admin/accounts/clients/invoices" element={<DashboardRoute element={<AdminClientInvoicesPage />} />} />
-          <Route path="/admin/accounts/clients/support" element={<DashboardRoute element={<ClientSupportPage />} />} />
+          <Route path="/admin/accounts/clients/support" element={<DashboardRoute element={<AdminClientSupportPage />} />} />
           <Route path="/admin/accounts/clients/contacts" element={<DashboardRoute element={<ClientContactsPage />} />} />
           
           {/* Admin Portfolio Routes */}

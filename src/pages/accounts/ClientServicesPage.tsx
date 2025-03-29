@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -79,6 +78,12 @@ interface Service {
   description: string | null;
   price: number | null;
   monthlyPrice: number | null;
+}
+
+interface SubMenuItem {
+  label: string;
+  href: string;
+  value: string;
 }
 
 const ClientServicesPage = () => {
@@ -226,7 +231,6 @@ const ClientServicesPage = () => {
     if (!clientIdFromUrl) return;
     
     try {
-      // Find the selected service
       const selectedService = availableServices.find(service => service.id === values.serviceId);
       const servicePrice = values.price !== '' ? parseFloat(values.price) : 
                          selectedService?.price || selectedService?.monthlyPrice || 0;
@@ -386,13 +390,12 @@ const ClientServicesPage = () => {
     }
   };
 
-  // Client submenu tabs
-  const subMenuItems = [
-    { label: "Overview", href: `/admin/accounts/clients?clientId=${clientIdFromUrl}` },
-    { label: "Services", href: `/admin/accounts/clients/services?clientId=${clientIdFromUrl}` },
-    { label: "Invoices", href: `/admin/accounts/clients/invoices?clientId=${clientIdFromUrl}` },
-    { label: "Support Tickets", href: `/admin/accounts/clients/support?clientId=${clientIdFromUrl}` },
-    { label: "Contacts", href: `/admin/accounts/clients/contacts?clientId=${clientIdFromUrl}` }
+  const subMenuItems: SubMenuItem[] = [
+    { label: "Overview", href: `/admin/accounts/clients?clientId=${clientIdFromUrl}`, value: "overview" },
+    { label: "Services", href: `/admin/accounts/clients/services?clientId=${clientIdFromUrl}`, value: "services" },
+    { label: "Invoices", href: `/admin/accounts/clients/invoices?clientId=${clientIdFromUrl}`, value: "invoices" },
+    { label: "Support Tickets", href: `/admin/accounts/clients/support?clientId=${clientIdFromUrl}`, value: "support" },
+    { label: "Contacts", href: `/admin/accounts/clients/contacts?clientId=${clientIdFromUrl}`, value: "contacts" }
   ];
 
   return (
@@ -436,7 +439,6 @@ const ClientServicesPage = () => {
         </Card>
       </div>
 
-      {/* Add Service Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -553,7 +555,6 @@ const ClientServicesPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Service Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

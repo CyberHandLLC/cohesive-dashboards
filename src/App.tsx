@@ -39,10 +39,10 @@ import ContentManagementPage from "./pages/engagements/ContentManagementPage";
 import LeadManagementPage from "./pages/engagements/LeadManagementPage";
 
 // Client Pages
-import ClientServicesPage from "./pages/client/ServicesPage";
+import ClientProfilePage from "./pages/client/ProfilePage";
+import ClientServicePage from "./pages/client/ServicesPage";
 import ClientInvoicesPage from "./pages/client/InvoicesPage";
 import ClientSupportPage from "./pages/client/SupportPage";
-import ClientProfilePage from "./pages/client/ProfilePage";
 
 // Observer Pages
 import ObserverServicesPage from "./pages/observer/ServicesPage";
@@ -101,7 +101,7 @@ const App = () => (
 
           {/* Client Routes */}
           <Route path="/client" element={<DashboardRoute element={<ClientDashboard />} />} />
-          <Route path="/client/accounts/services" element={<DashboardRoute element={<ClientServicesPage />} />} />
+          <Route path="/client/accounts/services" element={<DashboardRoute element={<ClientServicePage />} />} />
           <Route path="/client/accounts/invoices" element={<DashboardRoute element={<ClientInvoicesPage />} />} />
           <Route path="/client/accounts/support" element={<DashboardRoute element={<ClientSupportPage />} />} />
           <Route path="/client/accounts/profile" element={<DashboardRoute element={<ClientProfilePage />} />} />

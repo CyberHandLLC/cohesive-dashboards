@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
@@ -72,7 +71,7 @@ const LeadManagementPage = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST'>('ALL');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [isConvertDialogOpen, setIsConvertDialogOpen] = useState<boolean>(false);
@@ -310,7 +309,6 @@ const LeadManagementPage = () => {
     if (!selectedLead) return;
     
     try {
-      // First create a new client
       const { data: newClient, error: clientError } = await supabase
         .from('Client')
         .insert({
@@ -327,7 +325,6 @@ const LeadManagementPage = () => {
         throw new Error("Failed to create client record");
       }
       
-      // Now update the lead with convertedClientId
       const { error: updateError } = await supabase
         .from('Lead')
         .update({
@@ -338,7 +335,6 @@ const LeadManagementPage = () => {
       
       if (updateError) throw updateError;
       
-      // Create a contact from the lead
       const { error: contactError } = await supabase
         .from('Contact')
         .insert({
@@ -500,7 +496,6 @@ const LeadManagementPage = () => {
         </Card>
       </div>
 
-      {/* Add Lead Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -670,7 +665,6 @@ const LeadManagementPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Lead Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -842,7 +836,6 @@ const LeadManagementPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Convert Lead Dialog */}
       <Dialog open={isConvertDialogOpen} onOpenChange={setIsConvertDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

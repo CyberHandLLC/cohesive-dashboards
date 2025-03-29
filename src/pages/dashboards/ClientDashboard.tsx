@@ -1,326 +1,293 @@
 
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import StatsGrid from '@/components/dashboard/StatsGrid';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Database, CreditCard, MessageSquare, Calendar, FileText, AlertCircle, Check } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PieChart, Pie, Cell, AreaChart, Area, BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { supabase } from '@/integrations/supabase/client';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import { useToast } from '@/hooks/use-toast';
+import { CircleDollarSign, Clock, FileText, Package2 } from 'lucide-react';
+import MetricCard from '@/components/dashboard/MetricCard';
+import RecentUpdatesList from '@/components/dashboard/RecentUpdatesList';
+import { DashboardBarChart, DashboardLineChart, DashboardPieChart } from '@/components/dashboard/DashboardCharts';
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import type { ChartConfig } from '@/components/ui/chart';
 
-// Sample service usage data for the chart
-const serviceUsageData = [
-  { name: 'Jan', Hosting: 100, SEO: 80, Content: 40 },
-  { name: 'Feb', Hosting: 100, SEO: 82, Content: 45 },
-  { name: 'Mar', Hosting: 100, SEO: 85, Content: 48 },
-  { name: 'Apr', Hosting: 100, SEO: 90, Content: 52 },
-  { name: 'May', Hosting: 100, SEO: 95, Content: 58 },
-  { name: 'Jun', Hosting: 100, SEO: 100, Content: 65 }
-];
+// Define types for our data
+interface ClientService {
+  id: string;
+  serviceId: string;
+  startDate: string;
+  endDate: string | null;
+  status: string;
+  price: number | null;
+  service: {
+    name: string;
+    price: number | null;
+    description: string | null;
+  };
+}
 
-// Sample recent invoices data
-const recentInvoices = [
-  { id: 'INV-001', date: '2023-06-01', amount: 350, status: 'PAID' },
-  { id: 'INV-002', date: '2023-07-01', amount: 350, status: 'PAID' },
-  { id: 'INV-003', date: '2023-08-01', amount: 400, status: 'PENDING' },
-  { id: 'INV-004', date: '2023-09-01', amount: 400, status: 'UPCOMING' }
-];
+interface Invoice {
+  id: string;
+  amount: number;
+  status: string;
+  dueDate: string;
+  createdAt: string;
+}
+
+interface ClientDashboardData {
+  services: ClientService[];
+  invoices: Invoice[];
+  metrics: {
+    activeServices: number;
+    totalSpent: number;
+    pendingInvoices: number;
+    upcomingRenewals: number;
+  };
+}
 
 const ClientDashboard = () => {
-  const [clientData, setClientData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [supportTickets, setSupportTickets] = useState<any[]>([]);
+  const { toast } = useToast();
+  const [dashboardData, setDashboardData] = useState<ClientDashboardData>({
+    services: [],
+    invoices: [],
+    metrics: {
+      activeServices: 0,
+      totalSpent: 0,
+      pendingInvoices: 0,
+      upcomingRenewals: 0
+    }
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Mock client ID for demo purposes - would normally come from auth context
+  const clientId = '123e4567-e89b-12d3-a456-426614174001';
 
   useEffect(() => {
-    const fetchClientData = async () => {
+    const fetchDashboardData = async () => {
       setIsLoading(true);
-      
       try {
-        // Get current user session
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session) {
-          console.error('No active session found');
-          return;
-        }
-        
-        // Get the User record
-        const { data: userData, error: userError } = await supabase
+        // In a real app, we'd get the actual client ID from auth
+        const userId = '00000000-0000-0000-0000-000000000000';
+
+        // Get client ID from user
+        const { data: userData } = await supabase
           .from('User')
           .select('clientId')
-          .eq('id', session.user.id)
+          .eq('id', userId)
           .single();
-        
-        if (userError || !userData || !userData.clientId) {
-          console.error('Error fetching user data or client ID:', userError);
+
+        if (!userData?.clientId) {
+          toast({
+            title: "Error",
+            description: "Could not fetch client information",
+            variant: "destructive",
+          });
+          setIsLoading(false);
           return;
         }
-        
-        // Get client data
-        const { data: clientData, error: clientError } = await supabase
-          .from('Client')
+
+        // Fetch client services
+        const { data: servicesData } = await supabase
+          .from('ClientService')
+          .select(`
+            *,
+            service:serviceId (
+              name,
+              price,
+              description
+            )
+          `)
+          .eq('clientId', userData.clientId);
+
+        // Fetch client invoices
+        const { data: invoicesData } = await supabase
+          .from('Invoice')
           .select('*')
-          .eq('id', userData.clientId)
-          .single();
-        
-        if (clientError || !clientData) {
-          console.error('Error fetching client data:', clientError);
-          return;
-        }
-        
-        setClientData(clientData);
-
-        // Get recent support tickets
-        const { data: ticketsData, error: ticketsError } = await supabase
-          .from('SupportTicket')
-          .select('id, title, status, priority, createdAt')
           .eq('clientId', userData.clientId)
-          .order('createdAt', { ascending: false })
-          .limit(5);
+          .order('createdAt', { ascending: false });
 
-        if (!ticketsError && ticketsData) {
-          setSupportTickets(ticketsData);
-        }
+        // Calculate metrics
+        const activeServices = servicesData?.filter(s => s.status === 'ACTIVE').length || 0;
+        const totalSpent = invoicesData?.filter(i => i.status === 'PAID').reduce((sum, inv) => sum + inv.amount, 0) || 0;
+        const pendingInvoices = invoicesData?.filter(i => i.status === 'PENDING').length || 0;
+        
+        // Calculate upcoming renewals (services ending in the next 30 days)
+        const now = new Date();
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(now.getDate() + 30);
+        
+        const upcomingRenewals = servicesData?.filter(s => {
+          if (!s.endDate) return false;
+          const endDate = new Date(s.endDate);
+          return endDate >= now && endDate <= thirtyDaysFromNow;
+        }).length || 0;
+
+        setDashboardData({
+          services: servicesData || [],
+          invoices: invoicesData || [],
+          metrics: {
+            activeServices,
+            totalSpent,
+            pendingInvoices,
+            upcomingRenewals
+          }
+        });
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
+        console.error("Error fetching dashboard data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive",
+        });
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchClientData();
-  }, []);
+
+    fetchDashboardData();
+  }, [toast]);
+
+  // Prepare chart data
+  const serviceUsageData = dashboardData.services.length > 0
+    ? dashboardData.services.reduce((acc: any, service) => {
+        const serviceName = service.service?.name || 'Unknown Service';
+        const existingEntry = acc.find((entry: any) => entry.name === serviceName);
+        
+        if (existingEntry) {
+          existingEntry.value++;
+        } else {
+          acc.push({
+            name: serviceName,
+            value: 1,
+            // Assign a color based on index for visual differentiation
+            color: `hsl(${(acc.length * 40) % 360}, 70%, 50%)`
+          });
+        }
+        return acc;
+      }, [])
+    : [{ name: 'No Services', value: 1, color: '#ccc' }];
+
+  // Monthly invoice data
+  const monthlyInvoiceData = [
+    { name: 'Jan', paid: 1200, pending: 300 },
+    { name: 'Feb', paid: 1100, pending: 400 },
+    { name: 'Mar', paid: 1300, pending: 200 },
+    { name: 'Apr', paid: 900, pending: 400 },
+    { name: 'May', paid: 1500, pending: 300 },
+    { name: 'Jun', paid: 1200, pending: 100 },
+  ];
+
+  // Service usage history data
+  const serviceUsageHistory = [
+    { name: 'Jan', usage: 65 },
+    { name: 'Feb', usage: 59 },
+    { name: 'Mar', usage: 80 },
+    { name: 'Apr', usage: 81 },
+    { name: 'May', usage: 56 },
+    { name: 'Jun', usage: 75 },
+  ];
+
+  // Create chart configs
+  const invoiceChartConfig = {
+    paid: { label: 'Paid Invoices', theme: { light: '#4ade80', dark: '#4ade80' } },
+    pending: { label: 'Pending Invoices', theme: { light: '#fb923c', dark: '#fb923c' } },
+  };
+
+  const usageChartConfig = {
+    usage: { label: 'Service Usage', theme: { light: '#60a5fa', dark: '#60a5fa' } },
+  };
+
+  // Recent updates list items for the dashboard
+  const recentUpdates = dashboardData.invoices.slice(0, 5).map(invoice => ({
+    id: invoice.id,
+    title: `Invoice ${invoice.id.substring(0, 8)}`,
+    description: `Amount: $${invoice.amount}`,
+    date: new Date(invoice.createdAt),
+    badge: {
+      text: invoice.status,
+      variant: invoice.status === 'PAID' ? 'default' : 
+               invoice.status === 'PENDING' ? 'secondary' : 'outline'
+    },
+  }));
 
   const breadcrumbs = [
     { label: 'Client', href: '/client' },
-    { label: 'Dashboard' }
   ];
-
-  const stats = [
-    {
-      title: "Active Services",
-      value: "3",
-      icon: <Database className="h-4 w-4" />,
-      description: "Current subscriptions",
-    },
-    {
-      title: "Outstanding Invoices",
-      value: "$1,200",
-      icon: <CreditCard className="h-4 w-4" />,
-      description: "Due in 15 days",
-    },
-    {
-      title: "Support Tickets",
-      value: supportTickets.length.toString(),
-      icon: <MessageSquare className="h-4 w-4" />,
-      description: "Open tickets",
-    },
-    {
-      title: "Next Review",
-      value: "Oct 15",
-      icon: <Calendar className="h-4 w-4" />,
-      description: "Quarterly service review",
-    },
-  ];
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'PAID':
-        return <Check size={16} className="text-green-500" />;
-      case 'PENDING':
-        return <AlertCircle size={16} className="text-amber-500" />;
-      default:
-        return <FileText size={16} className="text-gray-500" />;
-    }
-  };
 
   return (
     <DashboardLayout 
       breadcrumbs={breadcrumbs}
-      role="client"
+      title="Dashboard"
+      role="client" 
     >
-      <div className="space-y-8">
-        {isLoading ? (
-          <div className="flex justify-center py-8">Loading dashboard data...</div>
-        ) : (
-          <>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-              <div>
-                <h1 className="text-2xl font-bold">
-                  Welcome, {clientData?.companyName || 'Client'}
-                </h1>
-                <p className="text-muted-foreground">
-                  Here's an overview of your services and account status
-                </p>
-              </div>
-              <Button asChild>
-                <a href="/client/accounts/support">Create Support Ticket</a>
-              </Button>
-            </div>
-            
-            <StatsGrid stats={stats} />
-            
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Service Usage Overview</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="h-[300px] w-full">
-                  <ChartContainer 
-                    config={{
-                      Hosting: { theme: { light: "#4c1d95", dark: "#8b5cf6" } },
-                      SEO: { theme: { light: "#0369a1", dark: "#0ea5e9" } },
-                      Content: { theme: { light: "#15803d", dark: "#22c55e" } }
-                    }}
-                  >
-                    <BarChart data={serviceUsageData}>
-                      <XAxis dataKey="name" />
-                      <YAxis />
-                      <Tooltip content={(props) => (
-                        <ChartTooltipContent {...props} />
-                      )} />
-                      <Legend />
-                      <Bar dataKey="Hosting" fillOpacity={0.9} fill="var(--color-Hosting)" />
-                      <Bar dataKey="SEO" fillOpacity={0.9} fill="var(--color-SEO)" />
-                      <Bar dataKey="Content" fillOpacity={0.9} fill="var(--color-Content)" />
-                    </BarChart>
-                  </ChartContainer>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Recent Invoices</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {recentInvoices.length > 0 ? (
-                    <div className="space-y-4">
-                      {recentInvoices.map((invoice) => (
-                        <div key={invoice.id} className="flex justify-between items-center border-b pb-3">
-                          <div className="flex items-center gap-3">
-                            {getStatusIcon(invoice.status)}
-                            <div>
-                              <p className="font-medium">{invoice.id}</p>
-                              <p className="text-xs text-muted-foreground">{new Date(invoice.date).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-medium">${invoice.amount}</p>
-                            <p className={`text-xs ${
-                              invoice.status === 'PAID' ? 'text-green-500' : 
-                              invoice.status === 'PENDING' ? 'text-amber-500' : 'text-gray-500'
-                            }`}>{invoice.status}</p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-4">
-                      No recent invoices found
-                    </p>
-                  )}
-                  <div className="mt-4 text-center">
-                    <Button variant="outline" size="sm" asChild>
-                      <a href="/client/accounts/invoices">View All Invoices</a>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Active Services</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3">
-                    <li className="flex justify-between items-center border-b pb-2">
-                      <span>Website Hosting (Premium)</span>
-                      <span className="text-green-600 font-medium">Active</span>
-                    </li>
-                    <li className="flex justify-between items-center border-b pb-2">
-                      <span>SEO Optimization</span>
-                      <span className="text-green-600 font-medium">Active</span>
-                    </li>
-                    <li className="flex justify-between items-center pb-2">
-                      <span>Content Management</span>
-                      <span className="text-green-600 font-medium">Active</span>
-                    </li>
-                  </ul>
-                  <div className="mt-4 text-center">
-                    <Button variant="outline" size="sm" asChild>
-                      <a href="/client/accounts/services">Manage Services</a>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+      <div className="space-y-6">
+        {/* Stats overview */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <MetricCard
+            title="Active Services"
+            value={dashboardData.metrics.activeServices}
+            icon={<Package2 className="h-4 w-4" />}
+            description="Current active service subscriptions"
+          />
+          <MetricCard
+            title="Total Spent"
+            value={dashboardData.metrics.totalSpent}
+            valuePrefix="$"
+            icon={<CircleDollarSign className="h-4 w-4" />}
+            description="Lifetime value"
+          />
+          <MetricCard
+            title="Pending Invoices"
+            value={dashboardData.metrics.pendingInvoices}
+            icon={<FileText className="h-4 w-4" />}
+            description="Awaiting payment"
+          />
+          <MetricCard
+            title="Upcoming Renewals"
+            value={dashboardData.metrics.upcomingRenewals}
+            icon={<Clock className="h-4 w-4" />}
+            description="Services renewing in the next 30 days"
+          />
+        </div>
 
-            <div className="grid grid-cols-1 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Recent Support Tickets</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {supportTickets.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full">
-                        <thead>
-                          <tr className="border-b">
-                            <th className="text-left py-3 px-4 font-medium">Ticket</th>
-                            <th className="text-left py-3 px-4 font-medium">Status</th>
-                            <th className="text-left py-3 px-4 font-medium">Priority</th>
-                            <th className="text-left py-3 px-4 font-medium hidden md:table-cell">Created</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {supportTickets.map((ticket) => (
-                            <tr key={ticket.id} className="border-b hover:bg-muted/50">
-                              <td className="py-3 px-4">{ticket.title}</td>
-                              <td className="py-3 px-4">
-                                <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                                  ticket.status === 'OPEN' ? 'bg-blue-100 text-blue-800' :
-                                  ticket.status === 'IN_PROGRESS' ? 'bg-amber-100 text-amber-800' :
-                                  ticket.status === 'RESOLVED' ? 'bg-green-100 text-green-800' :
-                                  'bg-gray-100 text-gray-800'
-                                }`}>
-                                  {ticket.status?.replace('_', ' ')}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4">
-                                <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                                  ticket.priority === 'HIGH' ? 'bg-red-100 text-red-800' :
-                                  ticket.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-800' :
-                                  'bg-green-100 text-green-800'
-                                }`}>
-                                  {ticket.priority}
-                                </span>
-                              </td>
-                              <td className="py-3 px-4 hidden md:table-cell">
-                                {new Date(ticket.createdAt).toLocaleDateString()}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-center py-4">
-                      No recent support tickets found
-                    </p>
-                  )}
-                  <div className="mt-4 text-center">
-                    <Button variant="outline" size="sm" asChild>
-                      <a href="/client/accounts/support">View All Tickets</a>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </>
-        )}
+        {/* Charts and Recent Updates */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {/* Service distribution */}
+          <DashboardPieChart
+            title="Service Distribution"
+            data={serviceUsageData}
+            height={300}
+          />
+
+          {/* Monthly Invoices */}
+          <DashboardBarChart
+            title="Monthly Invoices"
+            data={monthlyInvoiceData}
+            dataKeys={['paid', 'pending']}
+            height={300}
+            config={invoiceChartConfig}
+          />
+
+          {/* Recent Updates */}
+          <RecentUpdatesList
+            title="Recent Invoices & Updates"
+            items={recentUpdates}
+            emptyMessage="No recent updates"
+          />
+        </div>
+
+        {/* Service Usage Trends */}
+        <DashboardLineChart
+          title="Service Usage Trends"
+          data={serviceUsageHistory}
+          dataKeys={['usage']}
+          height={300}
+          config={usageChartConfig}
+          className="col-span-3"
+        />
       </div>
     </DashboardLayout>
   );

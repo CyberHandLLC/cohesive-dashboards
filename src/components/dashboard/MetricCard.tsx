@@ -16,6 +16,8 @@ export interface MetricCardProps {
   className?: string;
   valuePrefix?: string;
   valueSuffix?: string;
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
 }
 
 const MetricCard = ({
@@ -26,16 +28,46 @@ const MetricCard = ({
   trend,
   className,
   valuePrefix = "",
-  valueSuffix = ""
+  valueSuffix = "",
+  size = "md",
+  variant = "default"
 }: MetricCardProps) => {
+  
+  // Size variant styles
+  const sizeStyles = {
+    sm: "text-xl",
+    md: "text-2xl",
+    lg: "text-3xl"
+  };
+  
+  // Color variant styles
+  const variantStyles = {
+    default: "",
+    success: "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800",
+    warning: "bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800",
+    danger: "bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800",
+    info: "bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800"
+  };
+
+  // Trend color styles
+  const trendColorStyles = {
+    positive: "text-green-600",
+    negative: "text-red-600"
+  };
+
   return (
-    <Card className={cn("overflow-hidden", className)}>
+    <Card className={cn("overflow-hidden transition-all hover:shadow-md", variantStyles[variant], className)}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        {icon && <div className="h-4 w-4 text-muted-foreground">{icon}</div>}
+        {icon && <div className={cn("h-5 w-5 text-muted-foreground", {
+          "text-green-500": variant === "success",
+          "text-yellow-500": variant === "warning",
+          "text-red-500": variant === "danger",
+          "text-blue-500": variant === "info",
+        })}>{icon}</div>}
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">
+        <div className={cn("font-bold", sizeStyles[size])}>
           {valuePrefix}{value}{valueSuffix}
         </div>
         
@@ -48,7 +80,7 @@ const MetricCard = ({
             )}
             <p className={cn(
               "text-xs",
-              trend.positive ? "text-green-600" : "text-red-600"
+              trend.positive ? trendColorStyles.positive : trendColorStyles.negative
             )}>
               {trend.value}% from previous period
             </p>

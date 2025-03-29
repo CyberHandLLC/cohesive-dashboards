@@ -1,24 +1,14 @@
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { cn } from '@/lib/utils';
+import type { ChartConfig } from '@/components/ui/chart';
 
 interface ChartData {
   name: string;
   [key: string]: string | number;
-}
-
-interface ChartConfig {
-  [key: string]: {
-    label?: React.ReactNode;
-    color?: string;
-    theme?: {
-      light: string;
-      dark: string;
-    };
-  };
 }
 
 interface DashboardLineChartProps {
@@ -27,7 +17,7 @@ interface DashboardLineChartProps {
   height?: number | string;
   dataKeys: string[];
   showGrid?: boolean;
-  config?: ChartConfig;
+  config?: Record<string, { label?: React.ReactNode; theme?: Record<"light" | "dark", string> }>;
   className?: string;
 }
 
@@ -47,14 +37,12 @@ export const DashboardLineChart = ({
       </CardHeader>
       <CardContent>
         <div style={{ height, width: '100%' }}>
-          <ChartContainer config={config}>
+          <ChartContainer config={config as ChartConfig}>
             <LineChart data={data}>
               {showGrid && <CartesianGrid strokeDasharray="3 3" />}
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip content={(props) => (
-                <ChartTooltipContent {...props} />
-              )} />
+              <Tooltip content={props => <ChartTooltipContent {...props} />} />
               <Legend />
               {dataKeys.map((key) => (
                 <Line 
@@ -80,7 +68,7 @@ interface DashboardBarChartProps {
   height?: number | string;
   dataKeys: string[];
   showGrid?: boolean;
-  config?: ChartConfig;
+  config?: Record<string, { label?: React.ReactNode; theme?: Record<"light" | "dark", string> }>;
   className?: string;
   stacked?: boolean;
 }
@@ -102,14 +90,12 @@ export const DashboardBarChart = ({
       </CardHeader>
       <CardContent>
         <div style={{ height, width: '100%' }}>
-          <ChartContainer config={config}>
+          <ChartContainer config={config as ChartConfig}>
             <BarChart data={data}>
               {showGrid && <CartesianGrid strokeDasharray="3 3" />}
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip content={(props) => (
-                <ChartTooltipContent {...props} />
-              )} />
+              <Tooltip content={props => <ChartTooltipContent {...props} />} />
               <Legend />
               {dataKeys.map((key) => (
                 <Bar 
@@ -138,7 +124,7 @@ interface DashboardPieChartProps {
   data: PieChartData[];
   title: string;
   height?: number | string;
-  config?: ChartConfig;
+  config?: Record<string, { label?: React.ReactNode; theme?: Record<"light" | "dark", string> }>;
   className?: string;
   innerRadius?: number;
 }
@@ -153,6 +139,16 @@ export const DashboardPieChart = ({
 }: DashboardPieChartProps) => {
   const colors = data.map(item => item.color || `var(--color-${item.name.replace(/\s+/g, '')})`);
   
+  // Convert data to proper config format for ChartContainer
+  const chartConfig: Record<string, { label?: React.ReactNode; theme?: Record<"light" | "dark", string> }> = {};
+  data.forEach(item => {
+    const key = item.name.replace(/\s+/g, '');
+    chartConfig[key] = { 
+      label: item.name,
+      theme: { light: item.color || "#333", dark: item.color || "#ccc" }
+    };
+  });
+
   return (
     <Card className={cn(className)}>
       <CardHeader>
@@ -160,18 +156,7 @@ export const DashboardPieChart = ({
       </CardHeader>
       <CardContent>
         <div style={{ height, width: '100%' }}>
-          <ChartContainer 
-            config={config || data.reduce((acc, item) => {
-              const key = item.name.replace(/\s+/g, '');
-              return { 
-                ...acc, 
-                [key]: { 
-                  label: item.name,
-                  theme: { light: item.color || "#333", dark: item.color || "#ccc" } 
-                } 
-              };
-            }, {})}
-          >
+          <ChartContainer config={chartConfig as ChartConfig}>
             <PieChart>
               <Pie
                 data={data}
@@ -189,9 +174,7 @@ export const DashboardPieChart = ({
                   <Cell key={`cell-${index}`} fill={entry.color || colors[index % colors.length]} />
                 ))}
               </Pie>
-              <Tooltip content={(props) => (
-                <ChartTooltipContent {...props} />
-              )} />
+              <Tooltip content={props => <ChartTooltipContent {...props} />} />
               <Legend />
             </PieChart>
           </ChartContainer>

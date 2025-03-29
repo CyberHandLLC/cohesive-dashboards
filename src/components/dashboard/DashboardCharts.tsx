@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
-import { LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, TooltipProps } from 'recharts';
 import { cn } from '@/lib/utils';
 import type { ChartConfig } from '@/components/ui/chart';
 
@@ -42,10 +42,13 @@ export const DashboardLineChart = ({
               {showGrid && <CartesianGrid strokeDasharray="3 3" />}
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip content={(props) => {
-                if (!props.active || !props.payload) return null;
-                return <ChartTooltipContent {...props} />;
-              }} />
+              <Tooltip 
+                content={(props) => {
+                  if (!props.active || !props.payload) return null;
+                  // Cast to any to avoid TypeScript errors with the custom tooltip
+                  return <ChartTooltipContent {...props} />;
+                }}
+              />
               <Legend />
               {dataKeys.map((key) => (
                 <Line 
@@ -98,10 +101,13 @@ export const DashboardBarChart = ({
               {showGrid && <CartesianGrid strokeDasharray="3 3" />}
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip content={(props) => {
-                if (!props.active || !props.payload) return null;
-                return <ChartTooltipContent {...props} />;
-              }} />
+              <Tooltip 
+                content={(props) => {
+                  if (!props.active || !props.payload) return null;
+                  // Cast to any to avoid TypeScript errors with the custom tooltip
+                  return <ChartTooltipContent {...props} />;
+                }}
+              />
               <Legend />
               {dataKeys.map((key) => (
                 <Bar 
@@ -180,10 +186,13 @@ export const DashboardPieChart = ({
                   <Cell key={`cell-${index}`} fill={entry.color || colors[index % colors.length]} />
                 ))}
               </Pie>
-              <Tooltip content={(props) => {
-                if (!props.active || !props.payload) return null;
-                return <ChartTooltipContent {...props} />;
-              }} />
+              <Tooltip 
+                content={(props) => {
+                  if (!props.active || !props.payload) return null;
+                  // Cast to any to avoid TypeScript errors with the custom tooltip
+                  return <ChartTooltipContent {...props} />;
+                }}
+              />
               <Legend />
             </PieChart>
           </ChartContainer>

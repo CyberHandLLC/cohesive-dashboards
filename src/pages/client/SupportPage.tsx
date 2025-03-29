@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -93,34 +94,39 @@ const SupportPage = () => {
   const fetchTickets = async () => {
     setIsLoading(true);
     try {
-      const { data: clientData } = await supabase
+      // First, get the current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+      
+      // Then get the client ID associated with this user
+      const { data: userData, error: userError } = await supabase
         .from('User')
         .select('clientId')
-        .eq('id', '00000000-0000-0000-0000-000000000000')
+        .eq('id', user.id)
         .single();
 
-      if (clientData?.clientId) {
-        const { data, error } = await supabase
-          .from('SupportTicket')
-          .select(`
-            *,
-            staff:staffId(id, firstName, lastName)
-          `)
-          .eq('clientId', clientData.clientId);
-
-        if (error) {
-          throw error;
-        }
-
-        const ticketsData = data as unknown as Ticket[];
-        setTickets(ticketsData);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Could not find client information",
-        });
+      if (userError || !userData?.clientId) {
+        console.error("Error fetching user data:", userError);
+        throw new Error("Could not find client information");
       }
+
+      // Now fetch tickets for this client
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('SupportTicket')
+        .select(`
+          *,
+          staff:staffId(id, firstName, lastName)
+        `)
+        .eq('clientId', userData.clientId);
+
+      if (ticketsError) {
+        throw ticketsError;
+      }
+
+      setTickets(ticketsData as Ticket[]);
     } catch (error) {
       console.error("Error fetching tickets:", error);
       toast({
@@ -139,13 +145,21 @@ const SupportPage = () => {
 
   const onSubmit = async (values: TicketFormValues) => {
     try {
-      const { data: userData } = await supabase
+      // Get the current user's ID
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error("User not authenticated");
+      }
+      
+      // Get the client ID associated with this user
+      const { data: userData, error: userError } = await supabase
         .from('User')
         .select('clientId')
-        .eq('id', '00000000-0000-0000-0000-000000000000')
+        .eq('id', user.id)
         .single();
 
-      if (!userData?.clientId) {
+      if (userError || !userData?.clientId) {
         throw new Error("Client ID not found");
       }
 

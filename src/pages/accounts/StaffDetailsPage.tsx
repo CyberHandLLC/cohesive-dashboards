@@ -150,6 +150,8 @@ const StaffDetailsPage = () => {
       
       // Fetch support tickets assigned to this staff member
       console.log('Fetching support tickets for staff ID:', id);
+      
+      // Important fix: We need to query by staffId which is the Staff table id, not the userId
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('SupportTicket')
         .select(`
@@ -170,7 +172,7 @@ const StaffDetailsPage = () => {
       }
       
       console.log('Support tickets data:', ticketsData);
-      setSupportTickets(ticketsData || []);
+      setSupportTickets(Array.isArray(ticketsData) ? ticketsData : []);
       
       // For demo purposes, we'll use the mock tasks since there's no actual tasks table
       // In a real application, you would fetch tasks from your database

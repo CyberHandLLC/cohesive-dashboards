@@ -39,18 +39,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 type UserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED';
 
-interface User {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  email: string;
-  phoneNumber: string | null;
-  role: string;
-  status: UserStatus;
-  createdAt: string;
-  updatedAt: string;
+interface User extends UserType {
   emailVerified: boolean;
-  clientId?: string | null;
 }
 
 const UserDetailsPage = () => {

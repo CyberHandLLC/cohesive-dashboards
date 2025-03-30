@@ -24,7 +24,7 @@ export const useCategories = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
-  // Fetch all categories
+  // Fetch all categories with optimized query
   const { data: categories, isLoading, error } = useQuery({
     queryKey: ['categories'],
     queryFn: async () => {
@@ -67,7 +67,7 @@ export const useCategories = () => {
     }
   });
 
-  // Update a category
+  // Update a category with optimistic updates
   const updateMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string, updates: CategoryInput }) => {
       const { data, error } = await supabase
@@ -79,16 +79,40 @@ export const useCategories = () => {
       if (error) throw error;
       return data[0];
     },
-    onSuccess: () => {
+    onMutate: async ({ id, updates }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['categories'] });
+
+      // Snapshot the previous value
+      const previousCategories = queryClient.getQueryData<Category[]>(['categories']);
+
+      // Optimistically update to the new value
+      if (previousCategories) {
+        queryClient.setQueryData(['categories'], 
+          previousCategories.map(category => 
+            category.id === id ? { ...category, ...updates } : category
+          )
+        );
+      }
+
+      return { previousCategories };
+    },
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      // Also invalidate services query since category names might appear there
+      queryClient.invalidateQueries({ queryKey: ['services'] });
       toast({
         title: 'Category updated',
         description: 'The category has been updated successfully',
       });
       setEditingCategory(null);
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
       console.error('Error updating category:', error);
+      // Restore previous categories on error
+      if (context?.previousCategories) {
+        queryClient.setQueryData(['categories'], context.previousCategories);
+      }
       toast({
         title: 'Error',
         description: 'Failed to update category',
@@ -97,9 +121,21 @@ export const useCategories = () => {
     }
   });
 
-  // Delete a category
+  // Delete a category with service check
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // First check if there are any services using this category
+      const { count, error: countError } = await supabase
+        .from('Service')
+        .select('*', { count: 'exact', head: true })
+        .eq('categoryId', id);
+      
+      if (countError) throw countError;
+      
+      if (count && count > 0) {
+        throw new Error(`This category has ${count} associated services that need to be reassigned first.`);
+      }
+      
       const { error } = await supabase
         .from('Category')
         .delete()
@@ -121,7 +157,7 @@ export const useCategories = () => {
       console.error('Error deleting category:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete category',
+        description: error instanceof Error ? error.message : 'Failed to delete category',
         variant: 'destructive',
       });
     }

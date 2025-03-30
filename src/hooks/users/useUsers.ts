@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { User, UserFormData, UserRole } from '@/types/user';
@@ -14,6 +14,11 @@ export const useUsers = (searchQuery = '') => {
   const { toast } = useToast();
   const { changeRole } = useUserRoles();
   const { getUserById } = useUserDetails();
+
+  // Add useEffect to call fetchUsers on initialization and when searchQuery changes
+  useEffect(() => {
+    fetchUsers();
+  }, [searchQuery]);
 
   const fetchUsers = async () => {
     setIsLoading(true);

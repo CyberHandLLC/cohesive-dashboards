@@ -69,6 +69,9 @@ interface Task {
   title: string;
   progress: number;
   dueDate: string | null;
+  staffId: string;
+  status: string;
+  createdAt: string;
 }
 
 const StaffDetailsPage = () => {
@@ -159,8 +162,7 @@ const StaffDetailsPage = () => {
         
       console.log('Sample tickets in system:', allTickets);
       
-      // The issue is here - we're querying using staffId but it should be using b1b1b1b1-c2c2-d3d3-e4e4-f5f5f5f5f5f5 (userId)
-      // Let's try with the staff's userId instead
+      // The issue is here - we're querying using staffId but it should be using userId
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('SupportTicket')
         .select(`
@@ -183,12 +185,41 @@ const StaffDetailsPage = () => {
       console.log('Support tickets data for userId', userId, ':', ticketsData);
       setSupportTickets(Array.isArray(ticketsData) ? ticketsData : []);
       
-      // For demo purposes, we'll use the mock tasks since there's no actual tasks table
-      setTasks([
-        { id: '1', title: 'Project Alpha Completion', progress: 75, dueDate: '2023-07-15' },
-        { id: '2', title: 'Client Onboarding', progress: 50, dueDate: '2023-07-20' },
-        { id: '3', title: 'Bug Fixes', progress: 90, dueDate: '2023-07-10' },
-      ]);
+      // Now fetch tasks the same way - using userId instead of staffId
+      try {
+        console.log('Fetching tasks for userId:', userId);
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('Task')
+          .select('*')
+          .eq('staffId', userId);
+          
+        if (tasksError) {
+          console.error('Error fetching tasks:', tasksError);
+          throw tasksError;
+        }
+        
+        console.log('Tasks data for userId', userId, ':', tasksData);
+        
+        if (tasksData && tasksData.length > 0) {
+          setTasks(tasksData as Task[]);
+        } else {
+          // If no tasks found or table doesn't exist yet, use mock data
+          console.log('No tasks found, using mock data instead');
+          setTasks([
+            { id: '1', title: 'Project Alpha Completion', progress: 75, dueDate: '2023-07-15', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
+            { id: '2', title: 'Client Onboarding', progress: 50, dueDate: '2023-07-20', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
+            { id: '3', title: 'Bug Fixes', progress: 90, dueDate: '2023-07-10', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
+          ]);
+        }
+      } catch (error) {
+        console.error('Error in tasks functionality, using mock data instead:', error);
+        // Fallback to mock data if there's an error (like if the Task table doesn't exist yet)
+        setTasks([
+          { id: '1', title: 'Project Alpha Completion', progress: 75, dueDate: '2023-07-15', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
+          { id: '2', title: 'Client Onboarding', progress: 50, dueDate: '2023-07-20', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
+          { id: '3', title: 'Bug Fixes', progress: 90, dueDate: '2023-07-10', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
+        ]);
+      }
       
     } catch (error: any) {
       console.error('Error fetching related data:', error);

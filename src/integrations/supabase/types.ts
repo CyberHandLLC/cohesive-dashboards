@@ -287,9 +287,11 @@ export type Database = {
         Row: {
           authorId: string
           body: string
+          client_id: string | null
           contentType: Database["public"]["Enums"]["ContentType"] | null
           createdAt: string
           id: string
+          platform: string | null
           publishedAt: string | null
           status: Database["public"]["Enums"]["ContentStatus"]
           tags: string[] | null
@@ -299,9 +301,11 @@ export type Database = {
         Insert: {
           authorId: string
           body: string
+          client_id?: string | null
           contentType?: Database["public"]["Enums"]["ContentType"] | null
           createdAt?: string
           id?: string
+          platform?: string | null
           publishedAt?: string | null
           status?: Database["public"]["Enums"]["ContentStatus"]
           tags?: string[] | null
@@ -311,9 +315,11 @@ export type Database = {
         Update: {
           authorId?: string
           body?: string
+          client_id?: string | null
           contentType?: Database["public"]["Enums"]["ContentType"] | null
           createdAt?: string
           id?: string
+          platform?: string | null
           publishedAt?: string | null
           status?: Database["public"]["Enums"]["ContentStatus"]
           tags?: string[] | null
@@ -326,6 +332,13 @@ export type Database = {
             columns: ["authorId"]
             isOneToOne: false
             referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Content_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "Client"
             referencedColumns: ["id"]
           },
         ]
@@ -943,7 +956,12 @@ export type Database = {
       ContactStatus: "ACTIVE" | "INACTIVE"
       ContactType: "PRIMARY" | "BILLING" | "TECHNICAL" | "SUPPORT"
       ContentStatus: "DRAFT" | "PUBLISHED" | "ARCHIVED"
-      ContentType: "BLOG_POST" | "RESOURCE" | "FAQ" | "NEWS"
+      ContentType:
+        | "BLOG_POST"
+        | "RESOURCE"
+        | "FAQ"
+        | "NEWS"
+        | "SOCIAL_MEDIA_POST"
       InvoiceStatus: "PENDING" | "PAID" | "OVERDUE" | "CANCELED"
       LeadSource: "WEBSITE" | "REFERRAL" | "ADVERTISEMENT" | "EVENT" | "OTHER"
       LeadStatus: "NEW" | "CONTACTED" | "QUALIFIED" | "CONVERTED" | "LOST"

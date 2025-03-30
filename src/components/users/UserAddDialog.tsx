@@ -256,6 +256,7 @@ const UserAddDialog: React.FC<UserAddDialogProps> = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
                         {clients.map(client => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.companyName}

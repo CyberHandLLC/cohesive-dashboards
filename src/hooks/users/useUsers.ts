@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 type UserRole = 'ADMIN' | 'STAFF' | 'CLIENT' | 'OBSERVER';
 type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 type AuditAction = 'UPDATE' | 'DELETE';
-type AuditResource = 'USER' | 'USER_ROLE';
+type AuditResource = 'USER';
 
 interface User {
   id: string;
@@ -111,12 +111,11 @@ export const useUsers = (searchQuery: string = '') => {
         await supabase
           .from('AuditLog')
           .insert({
-            userId: userId,
             action: 'DELETE' as AuditAction,
             resource: 'USER' as AuditResource,
-            details: { clientId: userData.clientId }
-          })
-          .select();
+            details: { clientId: userData.clientId },
+            userId: userId
+          });
       }
       
       // Delete the user
@@ -295,10 +294,10 @@ export const useUsers = (searchQuery: string = '') => {
       await supabase
         .from('AuditLog')
         .insert({
-          userId,
           action: 'UPDATE' as AuditAction,
-          resource: 'USER_ROLE' as AuditResource,
-          details: { oldRole, newRole }
+          resource: 'USER' as AuditResource,
+          details: { oldRole, newRole },
+          userId: userId
         });
       
       await fetchUsers(); // Refresh user list

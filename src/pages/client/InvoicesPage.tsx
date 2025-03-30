@@ -25,16 +25,20 @@ import InvoiceStatusBadge from '@/components/invoices/InvoiceStatusBadge';
 import InvoiceDetailsDialog from '@/components/invoices/InvoiceDetailsDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { Invoice } from '@/types/invoice';
+import { useClientId } from '@/hooks/useClientId';
+import { useToast } from '@/hooks/use-toast';
 
 const ClientInvoicesPage = () => {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [clientInfo, setClientInfo] = useState<{ id: string; companyName: string } | null>(null);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
   const [totalOutstanding, setTotalOutstanding] = useState(0);
   const [totalPaid, setTotalPaid] = useState(0);
+  const [clientInfo, setClientInfo] = useState<{ id: string; companyName: string } | null>(null);
+  const { clientId, isLoading: clientIdLoading, error: clientIdError } = useClientId();
+  const { toast } = useToast();
   
   const breadcrumbs = [
     { label: 'Client', href: '/client' },
@@ -43,44 +47,42 @@ const ClientInvoicesPage = () => {
   ];
 
   useEffect(() => {
-    const fetchClientInfo = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) return;
-        
-        const { data, error } = await supabase
-          .from('User')
-          .select('clientId')
-          .eq('id', user.id)
-          .single();
-        
-        if (error || !data.clientId) {
-          console.error('Error fetching client ID:', error);
-          return;
-        }
-        
-        // Get client info
-        const { data: clientData, error: clientError } = await supabase
-          .from('Client')
-          .select('id, companyName')
-          .eq('id', data.clientId)
-          .single();
-        
-        if (clientError) {
-          console.error('Error fetching client details:', clientError);
-          return;
-        }
-        
-        setClientInfo(clientData);
-        fetchInvoices(clientData.id);
-      } catch (error) {
-        console.error('Error in client fetch operation:', error);
-      }
-    };
+    // Only fetch client info if we have a clientId
+    if (clientId) {
+      fetchClientInfo(clientId);
+    }
+  }, [clientId]);
 
-    fetchClientInfo();
-  }, []);
+  const fetchClientInfo = async (id: string) => {
+    try {
+      // Get client info
+      const { data: clientData, error: clientError } = await supabase
+        .from('Client')
+        .select('id, companyName')
+        .eq('id', id)
+        .single();
+      
+      if (clientError) {
+        console.error('Error fetching client details:', clientError);
+        toast({
+          title: "Error",
+          description: "Could not fetch client details",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setClientInfo(clientData);
+      fetchInvoices(clientData.id);
+    } catch (error) {
+      console.error('Error in client fetch operation:', error);
+      toast({
+        title: "Error",
+        description: "Could not fetch client information",
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchInvoices = async (clientId: string) => {
     setIsLoading(true);
@@ -124,13 +126,18 @@ const ClientInvoicesPage = () => {
       }
     } catch (error) {
       console.error('Error fetching invoices:', error);
+      toast({
+        title: "Error",
+        description: "Could not fetch invoices",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if (clientInfo) {
+    if (clientInfo?.id) {
       fetchInvoices(clientInfo.id);
     }
   }, [statusFilter, searchTerm, clientInfo]);
@@ -140,15 +147,37 @@ const ClientInvoicesPage = () => {
     setStatusFilter(null);
   };
 
-  const filteredInvoices = invoices.filter(invoice => {
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      const invoiceNumMatch = invoice.invoiceNumber?.toLowerCase().includes(term) || false;
-      const statusMatch = invoice.status.toLowerCase().includes(term);
-      return invoiceNumMatch || statusMatch;
-    }
-    return true;
-  });
+  // Display loading or error state if clientId isn't available yet
+  if (clientIdLoading) {
+    return (
+      <DashboardLayout 
+        breadcrumbs={breadcrumbs}
+        role="client"
+      >
+        <div className="flex justify-center items-center h-[60vh]">
+          <p>Loading client information...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (clientIdError) {
+    return (
+      <DashboardLayout 
+        breadcrumbs={breadcrumbs}
+        role="client"
+      >
+        <div className="flex flex-col justify-center items-center h-[60vh] space-y-4">
+          <AlertCircle className="h-12 w-12 text-destructive" />
+          <h2 className="text-xl font-semibold">Authentication Error</h2>
+          <p>{clientIdError}</p>
+          <Button asChild variant="outline">
+            <a href="/login">Log in again</a>
+          </Button>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout 
@@ -228,7 +257,7 @@ const ClientInvoicesPage = () => {
               <div className="flex justify-center py-8">
                 <p>Loading invoices...</p>
               </div>
-            ) : filteredInvoices.length > 0 ? (
+            ) : invoices.length > 0 ? (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
@@ -242,7 +271,7 @@ const ClientInvoicesPage = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredInvoices.map((invoice) => (
+                    {invoices.map((invoice) => (
                       <TableRow key={invoice.id}>
                         <TableCell>{invoice.invoiceNumber || invoice.id.slice(0, 8)}</TableCell>
                         <TableCell>{formatCurrency(invoice.amount)}</TableCell>

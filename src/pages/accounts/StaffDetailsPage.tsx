@@ -116,7 +116,7 @@ const StaffDetailsPage = () => {
         
         if (data) {
           setStaffMember(data as StaffMember);
-          await fetchRelatedData(data.userId, data.id);
+          await fetchRelatedData(data.userId, id);
         }
       } catch (error: any) {
         console.error('Error fetching staff details:', error);
@@ -149,7 +149,7 @@ const StaffDetailsPage = () => {
       setAssignedClients(clientsData || []);
       
       // Fetch support tickets assigned to this staff member
-      console.log('Fetching support tickets for staff ID:', staffId);
+      console.log('Fetching support tickets for staff ID:', staffId, 'and userId:', userId);
       
       // Debug to see if there are tickets in the system
       const { data: allTickets } = await supabase
@@ -159,7 +159,8 @@ const StaffDetailsPage = () => {
         
       console.log('Sample tickets in system:', allTickets);
       
-      // Use the staffId from the Staff table for the query
+      // The issue is here - we're querying using staffId but it should be using b1b1b1b1-c2c2-d3d3-e4e4-f5f5f5f5f5f5 (userId)
+      // Let's try with the staff's userId instead
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('SupportTicket')
         .select(`
@@ -172,14 +173,14 @@ const StaffDetailsPage = () => {
             companyName
           )
         `)
-        .eq('staffId', staffId);
+        .eq('staffId', userId); // Changed from staffId to userId
       
       if (ticketsError) {
         console.error('Error fetching support tickets:', ticketsError);
         throw ticketsError;
       }
       
-      console.log('Support tickets data for staffId', staffId, ':', ticketsData);
+      console.log('Support tickets data for userId', userId, ':', ticketsData);
       setSupportTickets(Array.isArray(ticketsData) ? ticketsData : []);
       
       // For demo purposes, we'll use the mock tasks since there's no actual tasks table
@@ -262,13 +263,13 @@ const StaffDetailsPage = () => {
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-2xl">
-                  {staffMember.user.firstName && staffMember.user.lastName
+                  {staffMember?.user.firstName && staffMember?.user.lastName
                     ? `${staffMember.user.firstName} ${staffMember.user.lastName}`
-                    : staffMember.user.firstName || staffMember.user.lastName || 'No name provided'}
+                    : staffMember?.user.firstName || staffMember?.user.lastName || 'No name provided'}
                 </CardTitle>
-                <CardDescription>{staffMember.title || 'No title specified'}</CardDescription>
+                <CardDescription>{staffMember?.title || 'No title specified'}</CardDescription>
               </div>
-              <Badge>{staffMember.user.status}</Badge>
+              <Badge>{staffMember?.user.status}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">

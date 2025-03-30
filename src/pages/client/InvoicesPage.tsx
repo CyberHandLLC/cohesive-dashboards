@@ -118,9 +118,9 @@ const ClientInvoicesPage = () => {
           (inv.invoiceNumber?.toLowerCase().includes(term) || false) ||
           inv.status.toLowerCase().includes(term)
         );
-        setInvoices(filtered);
+        setInvoices(filtered as Invoice[]);
       } else {
-        setInvoices(data);
+        setInvoices(data as Invoice[]);
       }
     } catch (error) {
       console.error('Error fetching invoices:', error);
@@ -203,14 +203,14 @@ const ClientInvoicesPage = () => {
               </div>
               <div className="w-full md:w-[200px]">
                 <Select
-                  value={statusFilter || ''}
-                  onValueChange={(value) => setStatusFilter(value || null)}
+                  value={statusFilter || 'all-statuses'}
+                  onValueChange={(value) => setStatusFilter(value === 'all-statuses' ? null : value)}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Statuses</SelectItem>
+                    <SelectItem value="all-statuses">All Statuses</SelectItem>
                     <SelectItem value="PENDING">Pending</SelectItem>
                     <SelectItem value="PAID">Paid</SelectItem>
                     <SelectItem value="OVERDUE">Overdue</SelectItem>

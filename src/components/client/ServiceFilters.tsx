@@ -35,14 +35,14 @@ const ServiceFilters: React.FC<ServiceFiltersProps> = ({
       </div>
       <div className="w-full md:w-[200px]">
         <Select
-          value={statusFilter || ''}
-          onValueChange={(value) => onStatusChange(value || null)}
+          value={statusFilter || 'all-statuses'}
+          onValueChange={(value) => onStatusChange(value === 'all-statuses' ? null : value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">All Statuses</SelectItem>
+            <SelectItem value="all-statuses">All Statuses</SelectItem>
             <SelectItem value="ACTIVE">Active</SelectItem>
             <SelectItem value="PENDING">Pending</SelectItem>
             <SelectItem value="EXPIRED">Expired</SelectItem>

@@ -3,13 +3,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
+// Define TypeScript types for the user roles and statuses
+type UserRole = 'ADMIN' | 'STAFF' | 'CLIENT' | 'OBSERVER';
+type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+type AuditAction = 'UPDATE' | 'DELETE';
+type AuditResource = 'USER' | 'USER_ROLE';
+
 interface User {
   id: string;
   email: string;
   firstName?: string;
   lastName?: string;
-  role: string;
-  status: string;
+  role: UserRole;
+  status: UserStatus;
   emailVerified: boolean;
   clientId?: string;
   securityVersion?: number;
@@ -23,8 +29,8 @@ interface User {
 interface UserFormData {
   email: string;
   password: string;
-  role: string;
-  status: string;
+  role: UserRole;
+  status: UserStatus;
   emailVerified: boolean;
   firstName?: string;
   lastName?: string;
@@ -106,8 +112,8 @@ export const useUsers = (searchQuery: string = '') => {
           .from('AuditLog')
           .insert({
             userId: userId,
-            action: 'DELETE',
-            resource: 'USER',
+            action: 'DELETE' as AuditAction,
+            resource: 'USER' as AuditResource,
             details: { clientId: userData.clientId }
           })
           .select();
@@ -233,10 +239,7 @@ export const useUsers = (searchQuery: string = '') => {
         if (passwordError) throw passwordError;
         
         // Increment security version to invalidate sessions
-        await supabase
-          .from('User')
-          .update({ securityVersion: supabase.rpc('increment_security_version', { user_id: userId }) })
-          .eq('id', userId);
+        await supabase.rpc('increment_security_version', { user_id: userId });
       }
       
       await fetchUsers(); // Refresh user list
@@ -252,7 +255,7 @@ export const useUsers = (searchQuery: string = '') => {
     }
   };
 
-  const changeRole = async (userId: string, newRole: string) => {
+  const changeRole = async (userId: string, newRole: UserRole) => {
     try {
       const { data: userData, error: fetchError } = await supabase
         .from('User')
@@ -292,9 +295,9 @@ export const useUsers = (searchQuery: string = '') => {
       await supabase
         .from('AuditLog')
         .insert({
-          userId: userId,
-          action: 'UPDATE',
-          resource: 'USER_ROLE',
+          userId,
+          action: 'UPDATE' as AuditAction,
+          resource: 'USER_ROLE' as AuditResource,
           details: { oldRole, newRole }
         });
       

@@ -14,11 +14,14 @@ import UserSearchBar from '@/components/users/UserSearchBar';
 import UsersTable from '@/components/users/UsersTable';
 import UserAddDialog from '@/components/users/UserAddDialog';
 import { useToast } from '@/hooks/use-toast';
+import UserEditDialog from '@/components/users/UserEditDialog';
 
 const UsersPage = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const { users, isLoading, deleteUser, addUser, editUser, changeRole } = useUsers(searchQuery);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const { toast } = useToast();
 
   const breadcrumbs = [
@@ -39,8 +42,8 @@ const UsersPage = () => {
     if (!userToEdit) return;
     
     // Open edit user dialog with pre-filled data
-    // This would be implemented in a separate component
-    console.log(`Edit user with ID: ${userId}`, userToEdit);
+    setSelectedUser(userToEdit);
+    setIsEditDialogOpen(true);
   };
 
   const handleDeleteUser = async (userId: string) => {
@@ -56,7 +59,7 @@ const UsersPage = () => {
   };
 
   const handleChangeRole = async (userId: string, newRole: string) => {
-    const success = await changeRole(userId, newRole);
+    const success = await changeRole(userId, newRole as 'ADMIN' | 'STAFF' | 'CLIENT' | 'OBSERVER');
     if (success) {
       toast({
         title: "Role updated",
@@ -72,6 +75,21 @@ const UsersPage = () => {
         toast({
           title: "User added",
           description: "New user has been created successfully",
+        });
+      }
+    });
+  };
+
+  const handleSubmitEditUser = (userData: any) => {
+    if (!selectedUser) return;
+    
+    editUser(selectedUser.id, userData).then(success => {
+      if (success) {
+        setIsEditDialogOpen(false);
+        setSelectedUser(null);
+        toast({
+          title: "User updated",
+          description: "User has been updated successfully",
         });
       }
     });
@@ -123,6 +141,15 @@ const UsersPage = () => {
         onOpenChange={setIsAddDialogOpen}
         onSubmit={handleAddUser}
       />
+
+      {selectedUser && (
+        <UserEditDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          onSubmit={handleSubmitEditUser}
+          user={selectedUser}
+        />
+      )}
     </DashboardLayout>
   );
 };

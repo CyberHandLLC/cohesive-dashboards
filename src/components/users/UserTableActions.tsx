@@ -11,6 +11,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+type UserRole = 'ADMIN' | 'STAFF' | 'CLIENT' | 'OBSERVER';
+
 interface UserTableActionsProps {
   userId: string;
   userRole?: string;
@@ -30,7 +32,7 @@ const UserTableActions: React.FC<UserTableActionsProps> = ({
 }) => {
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   
-  const availableRoles = ['ADMIN', 'STAFF', 'CLIENT', 'OBSERVER'];
+  const availableRoles: UserRole[] = ['ADMIN', 'STAFF', 'CLIENT', 'OBSERVER'];
 
   return (
     <div className="flex justify-end gap-2">

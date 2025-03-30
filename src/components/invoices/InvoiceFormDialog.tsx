@@ -70,7 +70,7 @@ const InvoiceFormDialog: React.FC<InvoiceFormDialogProps> = ({
       invoiceNumber: initialData?.invoiceNumber || generateInvoiceNumber(),
       dueDate: initialData?.dueDate ? new Date(initialData.dueDate) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       status: initialData?.status || 'PENDING',
-      paymentMethod: initialData?.paymentMethod || '',
+      paymentMethod: initialData?.paymentMethod || 'CREDIT_CARD',
     },
   });
 
@@ -87,7 +87,7 @@ const InvoiceFormDialog: React.FC<InvoiceFormDialogProps> = ({
           throw error;
         }
         
-        setClients(data);
+        setClients(data || []);
       } catch (error) {
         console.error('Error fetching clients:', error);
       }
@@ -101,6 +101,9 @@ const InvoiceFormDialog: React.FC<InvoiceFormDialogProps> = ({
     if (initialData?.lineItems) {
       setLineItems(initialData.lineItems);
       calculateTotal(initialData.lineItems);
+    } else {
+      setLineItems([]);
+      setTotalAmount(0);
     }
   }, [initialData]);
 
@@ -132,7 +135,10 @@ const InvoiceFormDialog: React.FC<InvoiceFormDialogProps> = ({
 
   const updateLineItem = (index: number, field: keyof LineItem, value: any) => {
     const newItems = [...lineItems];
-    newItems[index][field] = field === 'price' || field === 'quantity' ? parseFloat(value) : value;
+    newItems[index] = {
+      ...newItems[index],
+      [field]: field === 'price' || field === 'quantity' ? parseFloat(value) : value
+    };
     setLineItems(newItems);
     calculateTotal(newItems);
   };
@@ -180,7 +186,7 @@ const InvoiceFormDialog: React.FC<InvoiceFormDialogProps> = ({
                 <FormItem>
                   <FormLabel>Client</FormLabel>
                   <Select
-                    value={field.value}
+                    value={field.value || "select-client"}
                     onValueChange={field.onChange}
                     disabled={isLoading}
                   >
@@ -190,6 +196,7 @@ const InvoiceFormDialog: React.FC<InvoiceFormDialogProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="select-client" disabled>Select a client</SelectItem>
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
                           {client.companyName}
@@ -296,7 +303,7 @@ const InvoiceFormDialog: React.FC<InvoiceFormDialogProps> = ({
                   <FormItem>
                     <FormLabel>Payment Method</FormLabel>
                     <Select
-                      value={field.value}
+                      value={field.value || "CREDIT_CARD"}
                       onValueChange={field.onChange}
                       disabled={isLoading}
                     >

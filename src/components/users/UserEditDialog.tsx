@@ -296,7 +296,7 @@ const UserEditDialog: React.FC<UserEditDialogProps> = ({
                     <FormLabel>Associated Client</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      value={field.value || undefined}
+                      value={field.value || "unassigned"}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -304,7 +304,7 @@ const UserEditDialog: React.FC<UserEditDialogProps> = ({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="none">No client</SelectItem>
+                        <SelectItem value="unassigned">No client</SelectItem>
                         {clients.map(client => (
                           <SelectItem key={client.id} value={client.id}>
                             {client.companyName}

@@ -63,14 +63,14 @@ const InvoiceFilters: React.FC<InvoiceFiltersProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div>
           <Select
-            value={statusFilter || ''}
-            onValueChange={(value) => setStatusFilter(value === '' ? null : value)}
+            value={statusFilter || 'all-statuses'}
+            onValueChange={(value) => setStatusFilter(value === 'all-statuses' ? null : value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Statuses</SelectItem>
+              <SelectItem value="all-statuses">All Statuses</SelectItem>
               <SelectItem value="PENDING">Pending</SelectItem>
               <SelectItem value="PAID">Paid</SelectItem>
               <SelectItem value="OVERDUE">Overdue</SelectItem>
@@ -82,14 +82,14 @@ const InvoiceFilters: React.FC<InvoiceFiltersProps> = ({
 
         <div>
           <Select
-            value={paymentMethodFilter || ''}
-            onValueChange={(value) => setPaymentMethodFilter(value === '' ? null : value)}
+            value={paymentMethodFilter || 'all-methods'}
+            onValueChange={(value) => setPaymentMethodFilter(value === 'all-methods' ? null : value)}
           >
             <SelectTrigger>
               <SelectValue placeholder="Payment Method" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">All Methods</SelectItem>
+              <SelectItem value="all-methods">All Methods</SelectItem>
               <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
               <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
               <SelectItem value="PAYPAL">PayPal</SelectItem>

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   Table,
@@ -11,23 +10,7 @@ import {
 import UserRoleBadge from './UserRoleBadge';
 import UserStatusBadge from './UserStatusBadge';
 import UserTableActions from './UserTableActions';
-import { UserRole, UserStatus } from '@/hooks/users/useUsers';
-
-interface User {
-  id: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  role: UserRole;
-  status: UserStatus;
-  emailVerified?: boolean;
-  clientId?: string;
-  client?: {
-    companyName: string;
-  };
-  createdAt: string;
-  updatedAt?: string;
-}
+import { User, UserRole, UserStatus } from '@/types/user';
 
 interface UsersTableProps {
   users: User[];

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Eye, Edit, Trash2, UserCog } from 'lucide-react';
@@ -10,8 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-type UserRole = 'ADMIN' | 'STAFF' | 'CLIENT' | 'OBSERVER';
+import { UserRole } from '@/types/user';
 
 interface UserTableActionsProps {
   userId: string;

@@ -2,42 +2,18 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { User, UserFormData, UserRole } from '@/types/user';
+import { useUserRoles } from './useUserRoles';
+import { useUserDetails } from './useUserDetails';
 
-// Define user role and status types to match the database
-export type UserRole = 'ADMIN' | 'STAFF' | 'CLIENT' | 'OBSERVER';
-export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-
-export interface User {
-  id: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  role: UserRole;
-  status: UserStatus;
-  emailVerified?: boolean;
-  clientId?: string;
-  client?: {
-    companyName: string;
-  };
-  createdAt: string;
-  updatedAt?: string;
-}
-
-export interface UserFormData {
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  role: UserRole;
-  status: UserStatus;
-  emailVerified?: boolean;
-  clientId?: string;
-  password?: string;
-}
+export type { User, UserRole, UserStatus, UserFormData } from '@/types/user';
 
 export const useUsers = (searchQuery = '') => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
+  const { changeRole } = useUserRoles();
+  const { getUserById } = useUserDetails();
 
   const fetchUsers = async () => {
     setIsLoading(true);
@@ -232,100 +208,6 @@ export const useUsers = (searchQuery = '') => {
         variant: "destructive"
       });
       return false;
-    }
-  };
-
-  const changeRole = async (userId: string, newRole: UserRole): Promise<boolean> => {
-    try {
-      const { error } = await supabase
-        .from('User')
-        .update({ role: newRole })
-        .eq('id', userId);
-      
-      if (error) throw error;
-      
-      // If changing to staff role, create staff record if it doesn't exist
-      if (newRole === 'STAFF') {
-        // Check if staff record exists
-        const { data: existingStaff } = await supabase
-          .from('Staff')
-          .select('id')
-          .eq('userId', userId)
-          .single();
-        
-        if (!existingStaff) {
-          // Create staff record
-          const { error: staffError } = await supabase
-            .from('Staff')
-            .insert({
-              userId: userId,
-              title: 'New Staff Member',
-              department: 'Unassigned'
-            });
-          
-          if (staffError) throw staffError;
-        }
-      }
-      
-      // Log the role change
-      await supabase
-        .from('AuditLog')
-        .insert({
-          userId: userId, 
-          action: 'UPDATE',
-          resource: 'USER',
-          details: { role: { from: 'PREVIOUS', to: newRole } },
-          status: 'SUCCESS'
-        });
-      
-      await fetchUsers();
-      return true;
-    } catch (error: any) {
-      console.error('Error changing role:', error);
-      toast({
-        title: "Failed to change role",
-        description: error.message,
-        variant: "destructive"
-      });
-      return false;
-    }
-  };
-
-  const getUserById = async (userId: string): Promise<User | null> => {
-    try {
-      const { data, error } = await supabase
-        .from('User')
-        .select(`
-          id, 
-          email, 
-          firstName,
-          lastName,
-          role,
-          status,
-          emailVerified,
-          clientId,
-          client:clientId (
-            companyName
-          ),
-          createdAt,
-          updatedAt
-        `)
-        .eq('id', userId)
-        .single();
-      
-      if (error) {
-        throw error;
-      }
-      
-      return data;
-    } catch (error: any) {
-      console.error('Error fetching user:', error);
-      toast({
-        title: "Error loading user details",
-        description: error.message,
-        variant: "destructive"
-      });
-      return null;
     }
   };
 

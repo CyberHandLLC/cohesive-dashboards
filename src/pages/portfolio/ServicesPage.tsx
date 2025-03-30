@@ -11,6 +11,8 @@ import { ServiceFormDialog } from '@/components/portfolio/ServiceFormDialog';
 import { ServiceDeleteDialog } from '@/components/portfolio/ServiceDeleteDialog';
 import { ServiceTierFormDialog } from '@/components/portfolio/ServiceTierFormDialog';
 import { ServiceTierDeleteDialog } from '@/components/portfolio/ServiceTierDeleteDialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/use-toast';
 
 const ServicesPage = () => {
   const {
@@ -149,10 +151,6 @@ const ServicesPage = () => {
     { label: 'Portfolio', href: '/admin/portfolio' },
     { label: 'Services' }
   ];
-
-  // Import required dependencies at the top
-  const { supabase } = require('@/integrations/supabase/client');
-  const { toast } = require('@/components/ui/use-toast');
 
   return (
     <DashboardLayout 

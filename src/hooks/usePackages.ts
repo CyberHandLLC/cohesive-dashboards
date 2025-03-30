@@ -12,7 +12,7 @@ export type Package = {
   discount: number | null;
   monthlyPrice: number | null;
   services: string[];
-  availability: 'ACTIVE' | 'INACTIVE' | 'UPCOMING';
+  availability: 'ACTIVE' | 'DISCONTINUED' | 'COMING_SOON';
   customFields: Record<string, any> | null;
   createdAt: string;
   updatedAt: string;
@@ -25,7 +25,7 @@ export type PackageInput = {
   discount?: number | null;
   monthlyPrice?: number | null;
   services: string[];
-  availability?: 'ACTIVE' | 'INACTIVE' | 'UPCOMING';
+  availability?: 'ACTIVE' | 'DISCONTINUED' | 'COMING_SOON';
   customFields?: Record<string, any> | null;
 };
 
@@ -81,7 +81,7 @@ export const usePackages = () => {
 
   // Update a package
   const updateMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: string, updates: PackageInput }) => {
+    mutationFn: async ({ id, updates }: { id: string, updates: Partial<PackageInput> }) => {
       const { data, error } = await supabase
         .from('Package')
         .update(updates)

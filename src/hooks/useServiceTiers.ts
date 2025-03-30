@@ -12,7 +12,7 @@ export type ServiceTier = {
   price: number;
   monthlyPrice: number | null;
   serviceId: string;
-  availability: 'ACTIVE' | 'INACTIVE' | 'UPCOMING';
+  availability: 'ACTIVE' | 'DISCONTINUED' | 'COMING_SOON';
   createdAt: string;
   updatedAt: string;
 };
@@ -24,7 +24,7 @@ export type ServiceTierInput = {
   price: number;
   monthlyPrice?: number | null;
   serviceId: string;
-  availability?: 'ACTIVE' | 'INACTIVE' | 'UPCOMING';
+  availability?: 'ACTIVE' | 'DISCONTINUED' | 'COMING_SOON';
 };
 
 export const useServiceTiers = (serviceId?: string) => {

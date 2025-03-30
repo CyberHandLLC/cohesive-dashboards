@@ -1,32 +1,44 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { ServiceTier } from '@/hooks/useServiceTiers';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ServiceTier, ServiceTierInput } from '@/hooks/useServiceTiers';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { X, Plus } from 'lucide-react';
 
 const formSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().min(1, { message: "Name is required" }),
   description: z.string().optional(),
-  price: z.coerce.number().min(0, 'Price must be positive'),
-  monthlyPrice: z.coerce.number().optional().nullable(),
-  features: z.array(z.string()),
-  availability: z.enum(['ACTIVE', 'INACTIVE', 'UPCOMING']).default('ACTIVE'),
+  price: z.preprocess(
+    (a) => (a === '' ? undefined : Number(a)),
+    z.number().min(0).required({ message: "Price is required" })
+  ),
+  monthlyPrice: z.preprocess(
+    (a) => (a === '' ? undefined : Number(a)),
+    z.number().min(0).optional()
+  ),
+  features: z.array(z.string()).default([]),
+  availability: z.enum(['ACTIVE', 'DISCONTINUED', 'COMING_SOON']).default('ACTIVE'),
+  serviceId: z.string().min(1, { message: "Service ID is required" }),
 });
 
-type ServiceTierFormValues = z.infer<typeof formSchema>;
+type FormData = z.infer<typeof formSchema>;
 
 interface ServiceTierFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: ServiceTierInput) => void;
+  onSubmit: (values: any) => void;
   initialData?: ServiceTier | null;
   title: string;
   serviceId: string;
@@ -40,67 +52,32 @@ export function ServiceTierFormDialog({
   title,
   serviceId,
 }: ServiceTierFormDialogProps) {
-  const form = useForm<ServiceTierFormValues>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: initialData?.name || '',
       description: initialData?.description || '',
-      price: initialData?.price || 0,
-      monthlyPrice: initialData?.monthlyPrice || null,
+      price: initialData?.price || undefined,
+      monthlyPrice: initialData?.monthlyPrice || undefined,
       features: initialData?.features || [],
       availability: initialData?.availability || 'ACTIVE',
+      serviceId: serviceId || initialData?.serviceId || '',
     },
   });
 
-  // Reset form when initialData changes
-  useEffect(() => {
-    if (initialData) {
-      form.reset({
-        name: initialData.name || '',
-        description: initialData.description || '',
-        price: initialData.price || 0,
-        monthlyPrice: initialData.monthlyPrice || null,
-        features: initialData.features || [],
-        availability: initialData.availability || 'ACTIVE',
-      });
-    } else {
-      form.reset({
-        name: '',
-        description: '',
-        price: 0,
-        monthlyPrice: null,
-        features: [],
-        availability: 'ACTIVE',
-      });
-    }
-  }, [initialData, form]);
-
-  function handleSubmit(values: ServiceTierFormValues) {
-    onSubmit({
+  const handleSubmit = (values: FormData) => {
+    // Ensure features is an array
+    const formattedValues = {
       ...values,
-      serviceId,
-    });
-  }
-
-  // Feature management
-  const [newFeature, setNewFeature] = React.useState('');
-  
-  const addFeature = () => {
-    if (!newFeature.trim()) return;
-    
-    const currentFeatures = form.getValues().features || [];
-    form.setValue('features', [...currentFeatures, newFeature.trim()]);
-    setNewFeature('');
-  };
-
-  const removeFeature = (index: number) => {
-    const currentFeatures = form.getValues().features || [];
-    form.setValue('features', currentFeatures.filter((_, i) => i !== index));
+      features: values.features || [],
+      serviceId: serviceId
+    };
+    onSubmit(formattedValues);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[550px]">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -119,73 +96,6 @@ export function ServiceTierFormDialog({
                 </FormItem>
               )}
             />
-            
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="price"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Price (One-time)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="0.00" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="monthlyPrice"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Monthly Price</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="0.00" 
-                        {...field}
-                        value={field.value === null ? '' : field.value}
-                        onChange={(e) => field.onChange(e.target.value === '' ? null : Number(e.target.value))}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="availability"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Availability</FormLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select availability" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="INACTIVE">Inactive</SelectItem>
-                      <SelectItem value="UPCOMING">Upcoming</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
             <FormField
               control={form.control}
               name="description"
@@ -199,37 +109,57 @@ export function ServiceTierFormDialog({
                 </FormItem>
               )}
             />
-
-            <div>
-              <FormLabel>Features</FormLabel>
-              <div className="flex space-x-2">
-                <Input 
-                  value={newFeature} 
-                  onChange={(e) => setNewFeature(e.target.value)}
-                  placeholder="Add a feature"
-                  className="flex-1" 
-                />
-                <Button type="button" onClick={addFeature}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <div className="mt-2">
-                {form.watch('features')?.map((feature, index) => (
-                  <div key={index} className="flex items-center justify-between bg-secondary/20 px-3 py-2 rounded-md mt-1">
-                    <span>{feature}</span>
-                    <Button type="button" variant="ghost" size="sm" onClick={() => removeFeature(index)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="price"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Price</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0.00" {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="monthlyPrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monthly Price</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="0.00" {...field} value={field.value || ''} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            
+            <FormField
+              control={form.control}
+              name="availability"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Availability</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select availability" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
+                      <SelectItem value="COMING_SOON">Coming Soon</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
               <Button type="submit">Save</Button>
             </DialogFooter>
           </form>

@@ -1,26 +1,32 @@
 
 import React from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Category } from '@/hooks/useCategories';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Category, CategoryInput } from '@/hooks/useCategories';
 
 const formSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().min(1, { message: "Name is required" }),
   description: z.string().optional(),
 });
 
-type CategoryFormValues = z.infer<typeof formSchema>;
+type FormData = z.infer<typeof formSchema>;
 
 interface CategoryFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (values: CategoryInput) => void;
+  onSubmit: (values: any) => void;
   initialData?: Category | null;
   title: string;
 }
@@ -32,7 +38,7 @@ export function CategoryFormDialog({
   initialData,
   title,
 }: CategoryFormDialogProps) {
-  const form = useForm<CategoryFormValues>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: initialData?.name || '',
@@ -40,13 +46,13 @@ export function CategoryFormDialog({
     },
   });
 
-  function handleSubmit(values: CategoryFormValues) {
+  const handleSubmit = (values: FormData) => {
     onSubmit(values);
-  }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[525px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -79,9 +85,6 @@ export function CategoryFormDialog({
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
               <Button type="submit">Save</Button>
             </DialogFooter>
           </form>

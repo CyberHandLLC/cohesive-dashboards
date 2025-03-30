@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Package } from '@/hooks/usePackages';
 import { Service } from '@/hooks/useServices';
@@ -240,7 +241,6 @@ export function PackagesTable({
                     </TableCell>
                   </TableRow>
                   
-                  {/* Expanded row */}
                   {expandedRowIds.has(pkg.id) && (
                     <TableRow>
                       <TableCell colSpan={6} className="p-0 border-t-0">

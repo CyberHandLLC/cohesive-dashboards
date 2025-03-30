@@ -1,17 +1,26 @@
 
-import { useLocation, Link } from "react-router-dom";
+import { useLocation, Link, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 const NotFound = () => {
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     console.error(
       "404 Error: User attempted to access non-existent route:",
       location.pathname
     );
+
+    // Show a toast notification for better UX
+    toast({
+      variant: "destructive",
+      title: "Page not found",
+      description: "The requested page could not be found."
+    });
   }, [location.pathname]);
 
   // Check if the path contains 'packages' to provide a more specific message

@@ -1,300 +1,387 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Edit, Trash2, AlertCircle } from 'lucide-react';
-import { usePackages } from '@/hooks/usePackages';
 import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { Package } from '@/hooks/usePackages';
+import { supabase } from '@/integrations/supabase/client';
 import { formatCurrency } from '@/lib/formatters';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from '@/components/ui/use-toast';
+import { Service } from '@/hooks/useServices';
 import { PackageFormDialog } from '@/components/portfolio/PackageFormDialog';
 import { PackageDeleteDialog } from '@/components/portfolio/PackageDeleteDialog';
-import { toast } from '@/components/ui/use-toast';
 
 const PackageDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('overview');
+  const [isLoading, setIsLoading] = useState(true);
+  const [packageData, setPackageData] = useState<Package | null>(null);
+  const [services, setServices] = useState<Service[]>([]);
+  const [isLoadingServices, setIsLoadingServices] = useState(false);
+  const [clientCount, setClientCount] = useState<number>(0);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [packageClientCount, setPackageClientCount] = useState<number>(0);
-  const [isLoaded, setIsLoaded] = useState(false);
-  
-  const {
-    packages,
-    isLoading,
-    updatePackage,
-    deletePackage,
-    loadPackageServices,
-    loadedServices,
-    loadingServices,
-    getPackageClientCount
-  } = usePackages();
-  
-  const packageDetails = packages?.find(pkg => pkg.id === id);
-  
+
+  // Fetch the package details
   useEffect(() => {
-    // When packages load, check if the requested package exists
-    if (!isLoading && packages) {
-      setIsLoaded(true);
-      
-      if (id && !packageDetails) {
-        toast({
-          title: "Package not found",
-          description: "The package you're looking for doesn't exist or has been deleted",
-          variant: "destructive"
-        });
-        // Don't navigate away immediately so the toast can be seen
-        setTimeout(() => {
-          navigate('/admin/portfolio/packages');
-        }, 1500);
-      } else if (id && packageDetails) {
-        // Only load services and client count if package exists
-        loadPackageServices(id);
-        
-        getPackageClientCount(id).then(count => {
-          setPackageClientCount(count);
-        });
+    const fetchPackageDetails = async () => {
+      if (!id) {
+        navigate('/admin/portfolio/packages');
+        return;
       }
+
+      try {
+        setIsLoading(true);
+        const { data, error } = await supabase
+          .from('Package')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) {
+          throw error;
+        }
+
+        if (data) {
+          setPackageData(data as Package);
+          fetchServices(data.services);
+          getClientCount(id);
+        } else {
+          // No data found
+          toast({
+            variant: "destructive",
+            title: "Package not found",
+            description: "The requested package couldn't be found."
+          });
+          navigate('/admin/portfolio/packages');
+        }
+      } catch (error) {
+        console.error('Error fetching package details:', error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load package details."
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchPackageDetails();
+  }, [id, navigate]);
+
+  // Fetch the services included in the package
+  const fetchServices = async (serviceIds: string[]) => {
+    if (!serviceIds || serviceIds.length === 0) {
+      setServices([]);
+      return;
     }
-  }, [id, packages, isLoading, packageDetails, loadPackageServices, getPackageClientCount, navigate]);
-  
-  const handleDelete = async () => {
-    if (id) {
-      await deletePackage(id);
-      navigate('/admin/portfolio/packages');
+
+    try {
+      setIsLoadingServices(true);
+      const { data, error } = await supabase
+        .from('Service')
+        .select('*')
+        .in('id', serviceIds);
+
+      if (error) {
+        throw error;
+      }
+
+      setServices(data as Service[]);
+    } catch (error) {
+      console.error('Error fetching services:', error);
+    } finally {
+      setIsLoadingServices(false);
     }
   };
 
+  // Get client usage count
+  const getClientCount = async (packageId: string) => {
+    try {
+      const { count, error } = await supabase
+        .from('ClientService')
+        .select('*', { count: 'exact', head: true })
+        .eq('packageId', packageId)
+        .eq('status', 'ACTIVE');
+
+      if (error) {
+        throw error;
+      }
+
+      setClientCount(count || 0);
+    } catch (error) {
+      console.error('Error getting package client count:', error);
+    }
+  };
+
+  // Handle edit package
+  const handleEditPackage = async (values: any) => {
+    try {
+      const { data, error } = await supabase
+        .from('Package')
+        .update({
+          name: values.name,
+          description: values.description,
+          price: values.price,
+          discount: values.discount,
+          monthlyPrice: values.monthlyPrice,
+          services: values.services,
+          availability: values.availability,
+          customFields: values.customFields,
+          updatedAt: new Date()
+        })
+        .eq('id', id)
+        .select();
+
+      if (error) {
+        throw error;
+      }
+
+      if (data && data[0]) {
+        setPackageData(data[0] as Package);
+        fetchServices(data[0].services);
+        
+        toast({
+          title: "Package updated",
+          description: "The package has been updated successfully."
+        });
+      }
+    } catch (error) {
+      console.error('Error updating package:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update package."
+      });
+    } finally {
+      setIsEditDialogOpen(false);
+    }
+  };
+
+  // Handle delete package
+  const handleDeletePackage = async () => {
+    if (!id) return;
+
+    try {
+      const { error } = await supabase
+        .from('Package')
+        .delete()
+        .eq('id', id);
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Package deleted",
+        description: "The package has been deleted successfully."
+      });
+
+      navigate('/admin/portfolio/packages');
+    } catch (error) {
+      console.error('Error deleting package:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete package."
+      });
+    } finally {
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+  // Format breadcrumbs
   const breadcrumbs = [
     { label: 'Admin', href: '/admin' },
     { label: 'Portfolio', href: '/admin/portfolio' },
     { label: 'Packages', href: '/admin/portfolio/packages' },
-    { label: packageDetails?.name || 'Package Details' }
+    { label: packageData?.name || 'Package Details' }
   ];
 
-  // Show loading state
+  // Render loading state
   if (isLoading) {
     return (
-      <DashboardLayout 
-        breadcrumbs={breadcrumbs}
-        role="admin"
-      >
-        <div className="flex justify-center items-center h-64">
+      <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
+        <div className="flex items-center justify-center h-64">
           <p className="text-muted-foreground">Loading package details...</p>
         </div>
       </DashboardLayout>
     );
   }
 
-  // Show not found state after loading is complete and package doesn't exist
-  if (isLoaded && !packageDetails) {
+  // Render not found state
+  if (!packageData) {
     return (
-      <DashboardLayout 
-        breadcrumbs={breadcrumbs}
-        role="admin"
-      >
-        <div className="flex flex-col justify-center items-center h-64 space-y-4">
-          <div className="flex items-center space-x-2 text-destructive">
-            <AlertCircle className="h-6 w-6" />
-            <p className="text-lg font-medium">Package not found</p>
-          </div>
-          <p className="text-muted-foreground">The package you're looking for doesn't exist or has been deleted</p>
-          <Button variant="outline" onClick={() => navigate('/admin/portfolio/packages')}>
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Packages
+      <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
+        <div className="flex flex-col items-center justify-center h-64">
+          <h1 className="text-xl font-semibold mb-2">Package Not Found</h1>
+          <p className="text-muted-foreground mb-4">The requested package does not exist or has been deleted.</p>
+          <Button onClick={() => navigate('/admin/portfolio/packages')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Return to Packages
           </Button>
         </div>
       </DashboardLayout>
     );
   }
 
-  // Normal render for when the package exists
   return (
-    <DashboardLayout 
-      breadcrumbs={breadcrumbs}
-      role="admin"
-    >
+    <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/admin/portfolio/packages')}>
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="mr-4"
+              onClick={() => navigate('/admin/portfolio/packages')}
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
             </Button>
-            <h1 className="text-2xl font-bold">{packageDetails?.name}</h1>
-            {packageDetails && (
-              <Badge variant={
-                packageDetails.availability === 'ACTIVE' ? 'default' :
-                packageDetails.availability === 'DISCONTINUED' ? 'outline' : 'secondary'
-              }>
-                {packageDetails.availability}
-              </Badge>
-            )}
+            <h1 className="text-2xl font-bold">{packageData.name}</h1>
+            <Badge 
+              className="ml-2" 
+              variant={
+                packageData.availability === 'ACTIVE' ? 'default' :
+                packageData.availability === 'DISCONTINUED' ? 'outline' : 'secondary'
+              }
+            >
+              {packageData.availability}
+            </Badge>
           </div>
-          {packageDetails && (
-            <div className="flex space-x-2">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
-                <Edit className="mr-2 h-4 w-4" /> Edit
-              </Button>
-              <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditDialogOpen(true)}
+            >
+              <Edit className="mr-2 h-4 w-4" /> Edit
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => setIsDeleteDialogOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" /> Delete
+            </Button>
+          </div>
         </div>
-        
-        {packageDetails && (
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="services">Services</TabsTrigger>
-              <TabsTrigger value="clients">Client Usage</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="overview" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Package Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Name</h3>
-                      <p>{packageDetails.name}</p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Price</h3>
-                      <p>{formatCurrency(packageDetails.price)}</p>
-                    </div>
-                    
-                    {packageDetails.monthlyPrice !== null && (
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground">Monthly Price</h3>
-                        <p>{formatCurrency(packageDetails.monthlyPrice)}</p>
-                      </div>
-                    )}
-                    
-                    {packageDetails.discount !== null && (
-                      <div>
-                        <h3 className="text-sm font-medium text-muted-foreground">Discount</h3>
-                        <p>{packageDetails.discount}%</p>
-                      </div>
-                    )}
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                      <p>{packageDetails.availability}</p>
-                    </div>
-                    
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
-                      <p>{new Date(packageDetails.createdAt).toLocaleDateString()}</p>
-                    </div>
-                    
-                    <div className="col-span-2">
-                      <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
-                      <p>{packageDetails.description || 'No description provided'}</p>
-                    </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Package Details */}
+          <Card className="col-span-1 md:col-span-2">
+            <CardHeader>
+              <CardTitle>Package Details</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h3 className="font-medium text-sm text-muted-foreground">Description</h3>
+                <p className="mt-1">{packageData.description || 'No description available'}</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-medium text-sm text-muted-foreground">Price</h3>
+                  <p className="mt-1 text-lg font-medium">{formatCurrency(packageData.price)}</p>
+                </div>
+                {packageData.monthlyPrice !== null && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Monthly Price</h3>
+                    <p className="mt-1 text-lg font-medium">{formatCurrency(packageData.monthlyPrice)}</p>
                   </div>
-                  
-                  {packageDetails.customFields && Object.keys(packageDetails.customFields).length > 0 && (
-                    <div>
-                      <h3 className="text-sm font-medium text-muted-foreground mb-2">Custom Fields</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {Object.entries(packageDetails.customFields).map(([key, value]) => (
-                          <div key={key}>
-                            <h4 className="text-xs font-medium text-muted-foreground">{key}</h4>
-                            <p>{String(value)}</p>
-                          </div>
-                        ))}
+                )}
+                {packageData.discount !== null && packageData.discount > 0 && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Discount</h3>
+                    <p className="mt-1">{packageData.discount}%</p>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+
+              <div>
+                <h3 className="font-medium mb-2">Services Included</h3>
+                {isLoadingServices ? (
+                  <p className="text-sm text-muted-foreground">Loading services...</p>
+                ) : services.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {services.map(service => (
+                      <div key={service.id} className="border p-3 rounded-md">
+                        <p className="font-medium">{service.name}</p>
+                        <p className="text-sm text-muted-foreground">{formatCurrency(service.price || 0)}</p>
                       </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="services" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Included Services</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {loadingServices[id!] ? (
-                    <p className="text-muted-foreground">Loading services...</p>
-                  ) : loadedServices[id!]?.length > 0 ? (
-                    <ul className="space-y-2">
-                      {loadedServices[id!].map(service => (
-                        <li key={service.id} className="p-2 border rounded-md flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{service.name}</p>
-                            <p className="text-sm text-muted-foreground">{service.description}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-semibold">{formatCurrency(service.price || 0)}</p>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => navigate(`/admin/portfolio/services?serviceId=${service.id}`)}
-                            >
-                              View Details
-                            </Button>
-                          </div>
-                        </li>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No services included in this package</p>
+                )}
+              </div>
+
+              {packageData.customFields && Object.keys(packageData.customFields).length > 0 && (
+                <>
+                  <Separator />
+                  <div>
+                    <h3 className="font-medium mb-2">Additional Details</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.entries(packageData.customFields).map(([key, value]) => (
+                        <div key={key}>
+                          <h4 className="font-medium text-sm text-muted-foreground">{key}</h4>
+                          <p className="mt-1">{value?.toString()}</p>
+                        </div>
                       ))}
-                    </ul>
-                  ) : (
-                    <p className="text-muted-foreground">No services included in this package</p>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
-            
-            <TabsContent value="clients" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Client Usage</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8">
-                    <h3 className="text-3xl font-semibold mb-2">{packageClientCount}</h3>
-                    <p className="text-muted-foreground">Active client subscriptions</p>
-                    <Button 
-                      variant="outline" 
-                      className="mt-4"
-                      onClick={() => navigate(`/admin/accounts/clients?packageId=${id}`)}
-                    >
-                      View Client List
-                    </Button>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
-        )}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Client Usage */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Client Usage</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-center py-6">
+                <p className="text-3xl font-bold">{clientCount}</p>
+                <p className="text-muted-foreground">Active client subscriptions</p>
+              </div>
+            </CardContent>
+            <CardFooter>
+              <Button 
+                className="w-full" 
+                variant="outline"
+                onClick={() => navigate(`/admin/accounts/clients?packageId=${id}`)}
+              >
+                View Clients
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
       </div>
-      
-      {packageDetails && (
-        <>
-          <PackageFormDialog
-            open={isEditDialogOpen}
-            onOpenChange={setIsEditDialogOpen}
-            onSubmit={(values) => updatePackage({ id: id!, updates: values })}
-            initialData={packageDetails}
-            title="Edit Package"
-          />
-          
-          <PackageDeleteDialog
-            open={isDeleteDialogOpen}
-            onOpenChange={setIsDeleteDialogOpen}
-            package={packageDetails}
-            clientCount={packageClientCount}
-            onConfirm={handleDelete}
-          />
-        </>
-      )}
+
+      {/* Edit Package Dialog */}
+      <PackageFormDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSubmit={handleEditPackage}
+        initialData={packageData}
+        title="Edit Package"
+      />
+
+      {/* Delete Package Dialog */}
+      <PackageDeleteDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        package={packageData}
+        clientCount={clientCount}
+        onConfirm={handleDeletePackage}
+      />
     </DashboardLayout>
   );
 };

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { PackagesTable } from '@/components/portfolio/PackagesTable';
 import { PackageFormDialog } from '@/components/portfolio/PackageFormDialog';
 import { PackageDeleteDialog } from '@/components/portfolio/PackageDeleteDialog';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/components/ui/use-toast';
 
 const PackagesPage = () => {
   const navigate = useNavigate();
@@ -52,7 +53,26 @@ const PackagesPage = () => {
 
   // Handle package row click for navigation
   const handlePackageRowClick = (packageId: string) => {
-    navigate(`/admin/portfolio/packages/${packageId}`);
+    try {
+      if (!packageId) {
+        toast({
+          variant: "destructive",
+          title: "Navigation error",
+          description: "Could not navigate to package details due to missing ID."
+        });
+        return;
+      }
+      
+      console.log('Navigating to package details:', packageId);
+      navigate(`/admin/portfolio/packages/${packageId}`);
+    } catch (error) {
+      console.error('Error navigating to package details:', error);
+      toast({
+        variant: "destructive",
+        title: "Navigation error",
+        description: "An error occurred while navigating to package details."
+      });
+    }
   };
 
   // Handle client usage click

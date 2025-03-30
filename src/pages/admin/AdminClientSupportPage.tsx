@@ -254,61 +254,6 @@ const AdminClientSupportPage = () => {
     }
   };
 
-  const handleAssignStaff = async (ticketId: string, staffId: string | null) => {
-    try {
-      console.log(`Assigning ticket ${ticketId} to staff ${staffId}`);
-      
-      const { error } = await supabase
-        .from('SupportTicket')
-        .update({ staffId })
-        .eq('id', ticketId);
-        
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: staffId ? "Ticket assigned successfully" : "Ticket unassigned",
-      });
-      
-      fetchData();
-    } catch (error) {
-      console.error('Error assigning staff:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to assign staff to ticket",
-      });
-    }
-  };
-
-  const handleUpdateStatus = async (ticketId: string, status: TicketStatus) => {
-    try {
-      const { error } = await supabase
-        .from('SupportTicket')
-        .update({ 
-          status,
-          resolvedAt: status === 'RESOLVED' ? new Date().toISOString() : null 
-        })
-        .eq('id', ticketId);
-        
-      if (error) throw error;
-      
-      toast({
-        title: "Success",
-        description: `Ticket status updated to ${status}`,
-      });
-      
-      fetchData();
-    } catch (error) {
-      console.error('Error updating status:', error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Failed to update ticket status",
-      });
-    }
-  };
-
   const onSubmit = async (values: TicketFormValues) => {
     try {
       if (isAllTicketsView && !values.clientId) {
@@ -378,6 +323,59 @@ const AdminClientSupportPage = () => {
         variant: "destructive",
         title: "Error",
         description: "Failed to save ticket",
+      });
+    }
+  };
+
+  const handleAssignStaff = async (ticketId: string, staffId: string | null) => {
+    try {
+      const { error } = await supabase
+        .from('SupportTicket')
+        .update({ staffId })
+        .eq('id', ticketId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: staffId ? "Ticket assigned successfully" : "Ticket unassigned",
+      });
+      
+      fetchData();
+    } catch (error) {
+      console.error('Error assigning staff:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to assign staff to ticket",
+      });
+    }
+  };
+
+  const handleUpdateStatus = async (ticketId: string, status: TicketStatus) => {
+    try {
+      const { error } = await supabase
+        .from('SupportTicket')
+        .update({ 
+          status,
+          resolvedAt: status === 'RESOLVED' ? new Date().toISOString() : null 
+        })
+        .eq('id', ticketId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: `Ticket status updated to ${status}`,
+      });
+      
+      fetchData();
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update ticket status",
       });
     }
   };

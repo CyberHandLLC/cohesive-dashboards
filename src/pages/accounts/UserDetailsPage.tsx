@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -12,8 +11,8 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import UserRoleBadge from '@/components/users/UserRoleBadge';
-import UserStatusBadge from '@/components/users/UserStatusBadge';
+import { UserRoleBadge } from '@/components/users/UserRoleBadge';
+import { UserStatusBadge } from '@/components/users/UserStatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -21,7 +20,7 @@ import {
   Mail, 
   Phone, 
   Calendar, 
-  Edit,
+  Shield, 
   AlertCircle, 
   Check, 
   Key,
@@ -39,9 +38,6 @@ type UserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED';
 // Fix the interface to correctly match the UserType from useUsers
 interface User extends Omit<UserType, 'emailVerified'> {
   emailVerified?: boolean;
-  phone?: string;
-  lastLogin?: string;
-  companyName?: string;
 }
 
 interface Client {
@@ -179,15 +175,15 @@ const UserDetailsPage = () => {
             <div className="flex justify-between items-start">
               <div>
                 <CardTitle className="text-2xl">
-                  {user?.firstName && user?.lastName
+                  {user.firstName && user.lastName
                     ? `${user.firstName} ${user.lastName}`
-                    : user?.firstName || user?.lastName || 'No name provided'}
+                    : user.firstName || user.lastName || 'No name provided'}
                 </CardTitle>
                 <CardDescription>
-                  <UserRoleBadge role={user?.role as UserRole} />
+                  <UserRoleBadge role={user.role as UserRole} />
                 </CardDescription>
               </div>
-              <UserStatusBadge status={user?.status as UserStatus} />
+              <UserStatusBadge status={user.status as UserStatus} />
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -196,9 +192,9 @@ const UserDetailsPage = () => {
                 <p className="text-sm font-medium text-muted-foreground">Email</p>
                 <div className="flex items-center">
                   <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p>{user?.email}</p>
-                  {user?.emailVerified && (
-                    <Check className="h-4 w-4 ml-2 text-green-500" aria-label="Email Verified" />
+                  <p>{user.email}</p>
+                  {user.emailVerified && (
+                    <Check className="h-4 w-4 ml-2 text-green-500" title="Email Verified" />
                   )}
                 </div>
               </div>
@@ -206,35 +202,35 @@ const UserDetailsPage = () => {
                 <p className="text-sm font-medium text-muted-foreground">Phone</p>
                 <div className="flex items-center">
                   <Phone className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p>{user?.phone || 'Not specified'}</p>
+                  <p>{user.phone || 'Not specified'}</p>
                 </div>
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">Created At</p>
                 <div className="flex items-center">
                   <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p>{user?.createdAt ? formatDate(user.createdAt) : 'N/A'}</p>
+                  <p>{formatDate(user.createdAt)}</p>
                 </div>
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">Last Login</p>
                 <div className="flex items-center">
                   <Key className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p>{user?.lastLogin ? formatDate(user.lastLogin) : 'Not specified'}</p>
+                  <p>{user.lastLogin ? formatDate(user.lastLogin) : 'Not specified'}</p>
                 </div>
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">User ID</p>
                  <div className="flex items-center">
                   <IdCard className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p>{user?.id}</p>
+                  <p>{user.id}</p>
                 </div>
               </div>
               <div className="space-y-2">
                 <p className="text-sm font-medium text-muted-foreground">Company</p>
                 <div className="flex items-center">
                   <Building className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <p>{user?.companyName || 'Not specified'}</p>
+                  <p>{user.companyName || 'Not specified'}</p>
                 </div>
               </div>
             </div>
@@ -288,7 +284,7 @@ const UserDetailsPage = () => {
                 <input
                   type="email"
                   id="email"
-                  value={user?.email}
+                  value={user.email}
                   className="col-span-3 flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   disabled
                 />

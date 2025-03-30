@@ -151,7 +151,15 @@ const StaffDetailsPage = () => {
       // Fetch support tickets assigned to this staff member
       console.log('Fetching support tickets for staff ID:', staffId);
       
-      // Fixed query: Use staffId (Staff table primary key) instead of userId
+      // Debug to see if there are tickets in the system
+      const { data: allTickets } = await supabase
+        .from('SupportTicket')
+        .select('staffId')
+        .limit(5);
+        
+      console.log('Sample tickets in system:', allTickets);
+      
+      // Use the staffId from the Staff table for the query
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('SupportTicket')
         .select(`
@@ -171,11 +179,10 @@ const StaffDetailsPage = () => {
         throw ticketsError;
       }
       
-      console.log('Support tickets data:', ticketsData);
+      console.log('Support tickets data for staffId', staffId, ':', ticketsData);
       setSupportTickets(Array.isArray(ticketsData) ? ticketsData : []);
       
       // For demo purposes, we'll use the mock tasks since there's no actual tasks table
-      // In a real application, you would fetch tasks from your database
       setTasks([
         { id: '1', title: 'Project Alpha Completion', progress: 75, dueDate: '2023-07-15' },
         { id: '2', title: 'Client Onboarding', progress: 50, dueDate: '2023-07-20' },

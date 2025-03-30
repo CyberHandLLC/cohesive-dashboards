@@ -19,7 +19,13 @@ interface User {
   lastName?: string;
   role: string;
   status: string;
+  emailVerified?: boolean;
+  clientId?: string;
+  client?: {
+    companyName: string;
+  };
   createdAt: string;
+  updatedAt?: string;
 }
 
 interface UsersTableProps {
@@ -29,6 +35,7 @@ interface UsersTableProps {
   onView: (userId: string) => void;
   onEdit: (userId: string) => void;
   onDelete: (userId: string) => void;
+  onChangeRole?: (userId: string, newRole: string) => void;
 }
 
 const UsersTable: React.FC<UsersTableProps> = ({
@@ -38,6 +45,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
   onView,
   onEdit,
   onDelete,
+  onChangeRole,
 }) => {
   const formatDate = (dateString: string) => {
     try {
@@ -64,6 +72,8 @@ const UsersTable: React.FC<UsersTableProps> = ({
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Verified</TableHead>
+            <TableHead>Client</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
@@ -80,20 +90,37 @@ const UsersTable: React.FC<UsersTableProps> = ({
                 <TableCell>{user.email}</TableCell>
                 <TableCell><UserRoleBadge role={user.role} /></TableCell>
                 <TableCell><UserStatusBadge status={user.status} /></TableCell>
+                <TableCell>
+                  <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                    user.emailVerified 
+                      ? 'bg-green-100 text-green-800' 
+                      : 'bg-gray-100 text-gray-800'
+                  }`}>
+                    {user.emailVerified ? 'Yes' : 'No'}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  {user.client?.companyName || 
+                    (user.role === 'CLIENT' && !user.clientId ? 
+                      <span className="text-amber-600">Not assigned</span> : 
+                      'N/A')}
+                </TableCell>
                 <TableCell>{formatDate(user.createdAt)}</TableCell>
                 <TableCell className="text-right">
                   <UserTableActions 
                     userId={user.id} 
+                    userRole={user.role}
                     onView={onView}
                     onEdit={onEdit}
                     onDelete={onDelete}
+                    onChangeRole={onChangeRole}
                   />
                 </TableCell>
               </TableRow>
             ))
           ) : (
             <TableRow>
-              <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+              <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                 {searchQuery ? 'No users match your search criteria' : 'No users found'}
               </TableCell>
             </TableRow>

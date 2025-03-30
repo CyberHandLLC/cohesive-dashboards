@@ -61,12 +61,10 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
       if (error) throw error;
       return data as Package[];
     },
-    meta: {  // Use meta for callbacks in v5
-      onSuccess: (data: Package[]) => {
-        // Load client counts for all packages
-        if (data && data.length > 0) {
-          loadClientCounts(data);
-        }
+    onSuccess: (data) => {
+      // Load client counts for all packages
+      if (data && data.length > 0) {
+        loadClientCounts(data);
       }
     }
   });
@@ -152,25 +150,22 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
       setIsAddDialogOpen(false);
       
       // Log action in audit log
-      const user = supabase.auth.getUser();
-      user.then(({ data }) => {
-        const userId = data?.user?.id;
-        if (userId) {
-          supabase
-            .from('AuditLog')
-            .insert({
-              action: 'CREATE',
-              resource: 'PACKAGE',
-              userId,
-              details: { message: 'Package created' }
-            })
-            .then(({ error }) => {
-              if (error) {
-                console.error('Error logging action:', error);
-              }
-            });
-        }
-      });
+      const userId = supabase.auth.getUser()?.data?.user?.id;
+      if (userId) {
+        supabase
+          .from('AuditLog')
+          .insert({
+            action: 'CREATE',
+            resource: 'PACKAGE',
+            userId,
+            details: { message: 'Package created' }
+          })
+          .then(({ error }) => {
+            if (error) {
+              console.error('Error logging action:', error);
+            }
+          });
+      }
     },
     onError: (error) => {
       console.error('Error creating package:', error);
@@ -212,25 +207,22 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
       }
       
       // Log action in audit log
-      const user = supabase.auth.getUser();
-      user.then(({ data: userData }) => {
-        const userId = userData?.user?.id;
-        if (userId) {
-          supabase
-            .from('AuditLog')
-            .insert({
-              action: 'UPDATE',
-              resource: 'PACKAGE',
-              userId,
-              details: { message: 'Package updated' }
-            })
-            .then(({ error }) => {
-              if (error) {
-                console.error('Error logging action:', error);
-              }
-            });
-        }
-      });
+      const userId = supabase.auth.getUser()?.data?.user?.id;
+      if (userId) {
+        supabase
+          .from('AuditLog')
+          .insert({
+            action: 'UPDATE',
+            resource: 'PACKAGE',
+            userId,
+            details: { message: 'Package updated' }
+          })
+          .then(({ error }) => {
+            if (error) {
+              console.error('Error logging action:', error);
+            }
+          });
+      }
     },
     onError: (error) => {
       console.error('Error updating package:', error);
@@ -297,28 +289,25 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
       });
       
       // Log action in audit log
-      const user = supabase.auth.getUser();
-      user.then(({ data }) => {
-        const userId = data?.user?.id;
-        if (userId) {
-          supabase
-            .from('AuditLog')
-            .insert({
-              action: 'DELETE',
-              resource: 'PACKAGE',
-              userId,
-              details: { 
-                message: 'Package deleted',
-                clientServicesAffected: clientCount
-              }
-            })
-            .then(({ error }) => {
-              if (error) {
-                console.error('Error logging action:', error);
-              }
-            });
-        }
-      });
+      const userId = supabase.auth.getUser()?.data?.user?.id;
+      if (userId) {
+        supabase
+          .from('AuditLog')
+          .insert({
+            action: 'DELETE',
+            resource: 'PACKAGE',
+            userId,
+            details: { 
+              message: 'Package deleted',
+              clientServicesAffected: clientCount
+            }
+          })
+          .then(({ error }) => {
+            if (error) {
+              console.error('Error logging action:', error);
+            }
+          });
+      }
     },
     onError: (error) => {
       console.error('Error deleting package:', error);

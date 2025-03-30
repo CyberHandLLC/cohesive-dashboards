@@ -2,29 +2,23 @@
 import React, { useState } from 'react';
 import { Package } from '@/hooks/usePackages';
 import { Service } from '@/hooks/useServices';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import { formatCurrency } from '@/lib/formatters';
-import { ChevronDown, ChevronUp, Edit, Trash2, Search, X } from 'lucide-react';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Edit, Trash2, ChevronDown, ChevronUp, Users, Search, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { formatCurrency } from '@/lib/formatters';
 import { Input } from '@/components/ui/input';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface PackagesTableProps {
   packages: Package[];
-  services: Record<string, Service[]> | undefined;
-  clientCounts: Record<string, number> | undefined;
-  loadingServices: Record<string, boolean> | undefined;
-  onEdit?: (pkg: Package) => void;
-  onDelete?: (pkg: Package) => void;
-  searchQuery: string | undefined;
-  onSearchChange: (searchQuery: string) => void;
+  services?: Record<string, Service[]>;
+  clientCounts?: Record<string, number>;
+  loadingServices?: Record<string, boolean>;
+  onEdit: (pkg: Package) => void;
+  onDelete: (pkg: Package) => void;
+  searchQuery?: string;
+  onSearchChange?: (value: string) => void;
   onClientUsageClick?: (packageId: string) => void;
   onPackageExpand?: (packageId: string) => void;
   onPackageRowClick?: (packageId: string) => void;
@@ -32,252 +26,285 @@ interface PackagesTableProps {
 
 export function PackagesTable({ 
   packages, 
-  services, 
-  clientCounts,
-  loadingServices,
+  services = {},
+  clientCounts = {},
+  loadingServices = {},
   onEdit, 
   onDelete,
-  searchQuery,
+  searchQuery = '',
   onSearchChange,
   onClientUsageClick,
   onPackageExpand,
   onPackageRowClick
 }: PackagesTableProps) {
-  const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set());
-  const [sortConfig, setSortConfig] = useState<{
-    key: keyof Package | null;
-    direction: 'asc' | 'desc';
-  }>({ key: 'name', direction: 'asc' });
+  const [expandedPackages, setExpandedPackages] = useState<Record<string, boolean>>({});
+  const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'}>({
+    key: 'name',
+    direction: 'asc'
+  });
 
-  const handleSort = (key: keyof Package) => {
-    setSortConfig({ 
-      key, 
-      direction: sortConfig.key === key && sortConfig.direction === 'asc' ? 'desc' : 'asc' 
-    });
-  };
-
-  const handleToggleExpand = (id: string, event: React.MouseEvent) => {
-    event.stopPropagation(); // Prevent row click
-    const newExpandedRowIds = new Set(expandedRowIds);
-    if (newExpandedRowIds.has(id)) {
-      newExpandedRowIds.delete(id);
-    } else {
-      newExpandedRowIds.add(id);
-      if (onPackageExpand) {
-        onPackageExpand(id);
-      }
+  const toggleExpanded = (packageId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
     }
-    setExpandedRowIds(newExpandedRowIds);
-  };
-
-  const handleClearSearch = () => {
-    if (onSearchChange) {
-      onSearchChange('');
-    }
-  };
-
-  // Apply sorting
-  const sortedPackages = [...packages].sort((a, b) => {
-    if (sortConfig.key === null) return 0;
     
-    if (a[sortConfig.key] < b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? -1 : 1;
+    const newExpandedState = !expandedPackages[packageId];
+    
+    setExpandedPackages(prev => ({
+      ...prev,
+      [packageId]: newExpandedState
+    }));
+    
+    // Trigger loading of services if expanding and onPackageExpand is provided
+    if (newExpandedState && onPackageExpand) {
+      onPackageExpand(packageId);
     }
-    if (a[sortConfig.key] > b[sortConfig.key]) {
-      return sortConfig.direction === 'asc' ? 1 : -1;
+  };
+
+  const handleSort = (key: string) => {
+    setSortConfig(prevConfig => ({
+      key,
+      direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const sortedPackages = [...packages].sort((a, b) => {
+    if (sortConfig.key === 'price' || sortConfig.key === 'monthlyPrice' || sortConfig.key === 'discount') {
+      const aValue = a[sortConfig.key] || 0;
+      const bValue = b[sortConfig.key] || 0;
+      return sortConfig.direction === 'asc' ? aValue - bValue : bValue - aValue;
+    } else {
+      const aValue = a[sortConfig.key] || '';
+      const bValue = b[sortConfig.key] || '';
+      return sortConfig.direction === 'asc' 
+        ? String(aValue).localeCompare(String(bValue))
+        : String(bValue).localeCompare(String(aValue));
     }
-    return 0;
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search packages..."
-            value={searchQuery || ''}
-            onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
-            className="pl-8"
-          />
-          {searchQuery && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="absolute right-0 top-0 h-full rounded-l-none"
-              onClick={handleClearSearch}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          )}
+    <div>
+      {onSearchChange && (
+        <div className="flex items-center pb-4">
+          <div className="relative w-full">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search packages..."
+              value={searchQuery}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full pl-8"
+            />
+          </div>
         </div>
-      </div>
-
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
+      )}
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead 
+              className="cursor-pointer w-[180px]"
+              onClick={() => handleSort('name')}
+            >
+              <div className="flex items-center">
+                Name
+                <ArrowUpDown className="ml-1 h-4 w-4" />
+              </div>
+            </TableHead>
+            <TableHead 
+              className="cursor-pointer"
+              onClick={() => handleSort('price')}
+            >
+              <div className="flex items-center">
+                Price
+                <ArrowUpDown className="ml-1 h-4 w-4" />
+              </div>
+            </TableHead>
+            <TableHead 
+              className="cursor-pointer"
+              onClick={() => handleSort('monthlyPrice')}
+            >
+              <div className="flex items-center">
+                Monthly Price
+                <ArrowUpDown className="ml-1 h-4 w-4" />
+              </div>
+            </TableHead>
+            <TableHead 
+              className="cursor-pointer"
+              onClick={() => handleSort('discount')}
+            >
+              <div className="flex items-center">
+                Discount
+                <ArrowUpDown className="ml-1 h-4 w-4" />
+              </div>
+            </TableHead>
+            <TableHead className="cursor-pointer" onClick={() => handleSort('availability')}>
+              <div className="flex items-center">
+                Status
+                <ArrowUpDown className="ml-1 h-4 w-4" />
+              </div>
+            </TableHead>
+            <TableHead 
+              className="cursor-pointer"
+              onClick={() => handleSort('createdAt')}
+            >
+              <div className="flex items-center">
+                Created At
+                <ArrowUpDown className="ml-1 h-4 w-4" />
+              </div>
+            </TableHead>
+            <TableHead>Client Usage</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {sortedPackages.length === 0 ? (
             <TableRow>
-              <TableHead className="w-[200px]">
-                <div 
-                  className="flex items-center cursor-pointer"
-                  onClick={() => handleSort('name')}
-                >
-                  Name
-                  {sortConfig.key === 'name' && (
-                    sortConfig.direction === 'asc' ? 
-                    <ChevronUp className="ml-1 h-4 w-4" /> : 
-                    <ChevronDown className="ml-1 h-4 w-4" />
-                  )}
-                </div>
-              </TableHead>
-              <TableHead>
-                <div 
-                  className="flex items-center cursor-pointer"
-                  onClick={() => handleSort('price')}
-                >
-                  Price
-                  {sortConfig.key === 'price' && (
-                    sortConfig.direction === 'asc' ? 
-                    <ChevronUp className="ml-1 h-4 w-4" /> : 
-                    <ChevronDown className="ml-1 h-4 w-4" />
-                  )}
-                </div>
-              </TableHead>
-              <TableHead>Services</TableHead>
-              <TableHead>
-                <div 
-                  className="flex items-center cursor-pointer"
-                  onClick={() => handleSort('availability')}
-                >
-                  Status
-                  {sortConfig.key === 'availability' && (
-                    sortConfig.direction === 'asc' ? 
-                    <ChevronUp className="ml-1 h-4 w-4" /> : 
-                    <ChevronDown className="ml-1 h-4 w-4" />
-                  )}
-                </div>
-              </TableHead>
-              <TableHead>Client Usage</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                {searchQuery ? 'No packages found matching your search' : 'No packages found'}
+              </TableCell>
             </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sortedPackages.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
-                  No packages found.
-                </TableCell>
-              </TableRow>
-            ) : (
-              sortedPackages.map((pkg) => (
-                <React.Fragment key={pkg.id}>
-                  <TableRow className="cursor-pointer" onClick={() => onPackageRowClick && onPackageRowClick(pkg.id)}>
-                    <TableCell className="font-medium">
-                      <div className="flex items-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="mr-1 p-0 h-6 w-6"
-                          onClick={(e) => handleToggleExpand(pkg.id, e)}
-                        >
-                          {expandedRowIds.has(pkg.id) ? 
-                            <ChevronUp className="h-4 w-4" /> : 
-                            <ChevronDown className="h-4 w-4" />
-                          }
-                        </Button>
+          ) : (
+            sortedPackages.map((pkg) => (
+              <React.Fragment key={pkg.id}>
+                <TableRow className="cursor-pointer" onClick={() => onPackageRowClick && onPackageRowClick(pkg.id)}>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="p-0 mr-2 h-4 w-4"
+                        onClick={(e) => toggleExpanded(pkg.id, e)}
+                      >
+                        {expandedPackages[pkg.id] ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <span className="hover:underline flex items-center gap-1">
                         {pkg.name}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatCurrency(pkg.price)}</TableCell>
-                    <TableCell>{pkg.services.length}</TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        pkg.availability === 'ACTIVE' ? 'default' :
-                        pkg.availability === 'DISCONTINUED' ? 'outline' : 'secondary'
-                      }>
-                        {pkg.availability}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {clientCounts && clientCounts[pkg.id] !== undefined ? (
-                        <Button 
-                          variant="link" 
-                          className="p-0 h-auto"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onClientUsageClick && onClientUsageClick(pkg.id);
-                          }}
-                        >
-                          {clientCounts[pkg.id]} clients
-                        </Button>
-                      ) : (
-                        '—'
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit && onEdit(pkg);
-                          }}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDelete && onDelete(pkg);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                        <ExternalLink className="h-3 w-3 opacity-50" />
+                      </span>
+                    </div>
+                  </TableCell>
+                  <TableCell>{formatCurrency(pkg.price)}</TableCell>
+                  <TableCell>{pkg.monthlyPrice !== null ? formatCurrency(pkg.monthlyPrice) : '-'}</TableCell>
+                  <TableCell>{pkg.discount !== null ? `${pkg.discount}%` : '-'}</TableCell>
+                  <TableCell>
+                    <Badge variant={
+                      pkg.availability === 'ACTIVE' ? 'default' :
+                      pkg.availability === 'DISCONTINUED' ? 'outline' : 'secondary'
+                    }>
+                      {pkg.availability}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>{new Date(pkg.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    {clientCounts[pkg.id] !== undefined ? (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className={clientCounts[pkg.id] > 0 ? "text-blue-500" : "text-muted-foreground"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onClientUsageClick && clientCounts[pkg.id] > 0) {
+                            onClientUsageClick(pkg.id);
+                          }
+                        }}
+                        disabled={clientCounts[pkg.id] === 0}
+                      >
+                        <Users className="h-4 w-4 mr-1" /> 
+                        {clientCounts[pkg.id]} {clientCounts[pkg.id] === 1 ? 'client' : 'clients'}
+                      </Button>
+                    ) : (
+                      <span className="text-muted-foreground">Loading...</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                      <Button variant="ghost" size="icon" onClick={() => onEdit(pkg)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => onDelete(pkg)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                {expandedPackages[pkg.id] && (
+                  <TableRow>
+                    <TableCell colSpan={8} className="p-0 border-t-0">
+                      <Collapsible open={expandedPackages[pkg.id]}>
+                        <CollapsibleContent className="p-4 bg-muted/50">
+                          <div className="space-y-4">
+                            {pkg.description && (
+                              <div>
+                                <h4 className="font-medium mb-1">Description</h4>
+                                <p className="text-sm text-muted-foreground">{pkg.description}</p>
+                              </div>
+                            )}
+                            
+                            <div>
+                              <h4 className="font-medium mb-2">Included Services</h4>
+                              {loadingServices[pkg.id] ? (
+                                <div className="py-2 text-muted-foreground text-sm">Loading services...</div>
+                              ) : services[pkg.id]?.length > 0 ? (
+                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {services[pkg.id]?.map((service) => (
+                                    <li key={service.id} className="flex items-center space-x-2 text-sm">
+                                      <Badge variant="outline" className="h-6">
+                                        {service.name}
+                                      </Badge>
+                                      {service.price && (
+                                        <span className="text-muted-foreground">
+                                          {formatCurrency(service.price)}
+                                        </span>
+                                      )}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <div className="py-2 text-muted-foreground text-sm">No services added to this package</div>
+                              )}
+                            </div>
+                            
+                            {pkg.customFields && Object.keys(pkg.customFields).length > 0 && (
+                              <div>
+                                <h4 className="font-medium mb-2">Custom Fields</h4>
+                                <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                  {Object.entries(pkg.customFields).map(([key, value]) => (
+                                    <li key={key} className="text-sm">
+                                      <span className="font-medium">{key}:</span>{' '}
+                                      <span className="text-muted-foreground">{String(value)}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            
+                            <div className="pt-2 flex justify-end">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onPackageRowClick) onPackageRowClick(pkg.id);
+                                }}
+                              >
+                                View & Edit Details
+                                <ExternalLink className="ml-1 h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     </TableCell>
                   </TableRow>
-                  
-                  {expandedRowIds.has(pkg.id) && (
-                    <TableRow>
-                      <TableCell colSpan={6} className="p-0 border-t-0">
-                        <div className="bg-muted/50 p-4">
-                          <div className="mb-2">
-                            <h4 className="font-semibold">Description:</h4>
-                            <p className="text-muted-foreground text-sm">
-                              {pkg.description || 'No description available'}
-                            </p>
-                          </div>
-                          
-                          <div>
-                            <h4 className="font-semibold mb-2">Services included:</h4>
-                            {loadingServices && loadingServices[pkg.id] ? (
-                              <p className="text-sm text-muted-foreground">Loading services...</p>
-                            ) : services && services[pkg.id] && services[pkg.id].length > 0 ? (
-                              <ul className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                {services[pkg.id].map((service) => (
-                                  <li key={service.id} className="bg-background p-2 rounded-md">
-                                    {service.name} - {formatCurrency(service.price || 0)}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <p className="text-sm text-muted-foreground">No services in this package</p>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </React.Fragment>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                )}
+              </React.Fragment>
+            ))
+          )}
+        </TableBody>
+      </Table>
     </div>
   );
 }

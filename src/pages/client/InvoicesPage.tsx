@@ -24,7 +24,7 @@ import { formatCurrency, formatDate } from '@/lib/formatters';
 import InvoiceStatusBadge from '@/components/invoices/InvoiceStatusBadge';
 import InvoiceDetailsDialog from '@/components/invoices/InvoiceDetailsDialog';
 import { supabase } from '@/integrations/supabase/client';
-import { Invoice } from '@/types/invoice';
+import { Invoice, InvoiceStatus } from '@/types/invoice';
 import { useClientId } from '@/hooks/useClientId';
 import { useToast } from '@/hooks/use-toast';
 
@@ -94,7 +94,8 @@ const ClientInvoicesPage = () => {
         .order('createdAt', { ascending: false });
       
       if (statusFilter) {
-        query = query.eq('status', statusFilter);
+        // Cast statusFilter to InvoiceStatus type to ensure compatibility
+        query = query.eq('status', statusFilter as InvoiceStatus);
       }
       
       const { data, error } = await query;
@@ -120,9 +121,11 @@ const ClientInvoicesPage = () => {
           (inv.invoiceNumber?.toLowerCase().includes(term) || false) ||
           inv.status.toLowerCase().includes(term)
         );
-        setInvoices(filtered as Invoice[]);
+        // Cast to Invoice[] since we're handling compatible types
+        setInvoices(filtered as unknown as Invoice[]);
       } else {
-        setInvoices(data as Invoice[]);
+        // Cast to Invoice[] since we're handling compatible types
+        setInvoices(data as unknown as Invoice[]);
       }
     } catch (error) {
       console.error('Error fetching invoices:', error);

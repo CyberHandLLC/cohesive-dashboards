@@ -35,11 +35,23 @@ export const useClientId = () => {
           .eq('id', user.id)
           .single();
 
-        if (userError || !userData?.clientId) {
+        if (userError) {
+          console.error('Error fetching client ID:', userError);
           setError('Could not fetch client information');
           toast({
             title: "Error",
             description: "Could not fetch client information",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        if (!userData?.clientId) {
+          setError('User is not associated with a client');
+          toast({
+            title: "Access Error",
+            description: "Your user account is not associated with a client",
             variant: "destructive",
           });
           setIsLoading(false);

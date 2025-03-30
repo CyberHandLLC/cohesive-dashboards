@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/components/ui/use-toast';
@@ -47,6 +47,7 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
   const { data: packages, isLoading, error } = useQuery({
     queryKey: ['packages', searchTerm],
     queryFn: async () => {
+      console.log("Fetching packages with search term:", searchTerm);
       let query = supabase
         .from('Package')
         .select('*');
@@ -58,16 +59,21 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
       
       const { data, error } = await query.order('name');
       
-      if (error) throw error;
-      return data as Package[];
-    },
-    onSuccess: (data) => {
-      // Load client counts for all packages
-      if (data && data.length > 0) {
-        loadClientCounts(data);
+      if (error) {
+        console.error("Error fetching packages:", error);
+        throw error;
       }
+      console.log("Fetched packages:", data);
+      return data as Package[];
     }
   });
+
+  // Load client counts for packages when data is loaded
+  useEffect(() => {
+    if (packages && packages.length > 0) {
+      loadClientCounts(packages);
+    }
+  }, [packages]);
 
   // Load client counts for packages
   const loadClientCounts = async (packageList: Package[]) => {
@@ -150,22 +156,24 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
       setIsAddDialogOpen(false);
       
       // Log action in audit log
-      const userId = supabase.auth.getUser()?.data?.user?.id;
-      if (userId) {
-        supabase
-          .from('AuditLog')
-          .insert({
-            action: 'CREATE',
-            resource: 'PACKAGE',
-            userId,
-            details: { message: 'Package created' }
-          })
-          .then(({ error }) => {
-            if (error) {
-              console.error('Error logging action:', error);
-            }
-          });
-      }
+      const user = supabase.auth.getUser();
+      user.then(({ data }) => {
+        if (data?.user) {
+          supabase
+            .from('AuditLog')
+            .insert({
+              action: 'CREATE',
+              resource: 'PACKAGE',
+              userId: data.user.id,
+              details: { message: 'Package created' }
+            })
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error logging action:', error);
+              }
+            });
+        }
+      });
     },
     onError: (error) => {
       console.error('Error creating package:', error);
@@ -207,22 +215,24 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
       }
       
       // Log action in audit log
-      const userId = supabase.auth.getUser()?.data?.user?.id;
-      if (userId) {
-        supabase
-          .from('AuditLog')
-          .insert({
-            action: 'UPDATE',
-            resource: 'PACKAGE',
-            userId,
-            details: { message: 'Package updated' }
-          })
-          .then(({ error }) => {
-            if (error) {
-              console.error('Error logging action:', error);
-            }
-          });
-      }
+      const user = supabase.auth.getUser();
+      user.then(({ data }) => {
+        if (data?.user) {
+          supabase
+            .from('AuditLog')
+            .insert({
+              action: 'UPDATE',
+              resource: 'PACKAGE',
+              userId: data.user.id,
+              details: { message: 'Package updated' }
+            })
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error logging action:', error);
+              }
+            });
+        }
+      });
     },
     onError: (error) => {
       console.error('Error updating package:', error);
@@ -289,25 +299,27 @@ export const usePackages = (filters?: { searchTerm?: string }) => {
       });
       
       // Log action in audit log
-      const userId = supabase.auth.getUser()?.data?.user?.id;
-      if (userId) {
-        supabase
-          .from('AuditLog')
-          .insert({
-            action: 'DELETE',
-            resource: 'PACKAGE',
-            userId,
-            details: { 
-              message: 'Package deleted',
-              clientServicesAffected: clientCount
-            }
-          })
-          .then(({ error }) => {
-            if (error) {
-              console.error('Error logging action:', error);
-            }
-          });
-      }
+      const user = supabase.auth.getUser();
+      user.then(({ data }) => {
+        if (data?.user) {
+          supabase
+            .from('AuditLog')
+            .insert({
+              action: 'DELETE',
+              resource: 'PACKAGE',
+              userId: data.user.id,
+              details: { 
+                message: 'Package deleted',
+                clientServicesAffected: clientCount
+              }
+            })
+            .then(({ error }) => {
+              if (error) {
+                console.error('Error logging action:', error);
+              }
+            });
+        }
+      });
     },
     onError: (error) => {
       console.error('Error deleting package:', error);

@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { PackagesTable } from '@/components/portfolio/PackagesTable';
 import { PackageFormDialog } from '@/components/portfolio/PackageFormDialog';
 import { PackageDeleteDialog } from '@/components/portfolio/PackageDeleteDialog';
 import { useNavigate } from 'react-router-dom';
+import { toast } from '@/components/ui/use-toast';
 
 const PackagesPage = () => {
   const navigate = useNavigate();
@@ -36,6 +37,11 @@ const PackagesPage = () => {
     getPackageClientCount,
   } = usePackages();
 
+  // Debug
+  useEffect(() => {
+    console.log("Packages loaded:", packages);
+  }, [packages]);
+
   // Handle deleting a package with checks
   const handleDeletePackage = async (pkg) => {
     // Get client count for warnings
@@ -52,7 +58,16 @@ const PackagesPage = () => {
 
   // Handle package row click for navigation
   const handlePackageRowClick = (packageId: string) => {
-    navigate(`/admin/portfolio/packages/${packageId}`);
+    console.log("Navigating to package details:", packageId);
+    if (packageId) {
+      navigate(`/admin/portfolio/packages/${packageId}`);
+    } else {
+      toast({
+        title: "Error",
+        description: "Invalid package ID",
+        variant: "destructive"
+      });
+    }
   };
 
   // Handle client usage click

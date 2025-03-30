@@ -16,13 +16,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from '@/components/ui/use-toast';
 import { usePackages, PackageInput } from '@/hooks/usePackages';
 import { useServices } from '@/hooks/useServices';
-import { Loader2, ArrowLeft, Save } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { Loader2, ArrowLeft, Save, AlertCircle } from 'lucide-react';
+import { formatCurrency } from '@/lib/formatters';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const PackageDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
   
   const {
     packages,
@@ -35,16 +37,26 @@ const PackageDetailsPage = () => {
   const { services: allServices, isLoading: servicesLoading } = useServices();
   
   const currentPackage = packages?.find(pkg => pkg.id === id);
+
+  // Check if package exists after loading
+  useEffect(() => {
+    if (!packagesLoading && packages?.length > 0 && id && !currentPackage) {
+      console.log("Package not found:", id);
+      console.log("Available packages:", packages);
+      setNotFound(true);
+    }
+  }, [id, currentPackage, packages, packagesLoading]);
   
   useEffect(() => {
     if (id && currentPackage) {
+      console.log("Loading services for package:", id);
       loadPackageServices(id);
     }
-  }, [id, currentPackage]);
+  }, [id, currentPackage, loadPackageServices]);
   
   const formSchema = z.object({
     name: z.string().min(1, "Package name is required"),
-    description: z.string().optional(),
+    description: z.string().optional().nullable(),
     price: z.coerce.number().min(0, "Price must be a non-negative number"),
     discount: z.coerce.number().min(0, "Discount must be a non-negative number").max(100, "Discount cannot exceed 100%").optional().nullable(),
     monthlyPrice: z.coerce.number().min(0, "Monthly price must be a non-negative number").optional().nullable(),
@@ -117,7 +129,7 @@ const PackageDetailsPage = () => {
   
   if (!id) {
     return (
-      <DashboardLayout breadcrumbs={breadcrumbs}>
+      <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
         <Card>
           <CardContent className="pt-6">
             <p>Invalid package ID. Please go back to the packages list.</p>
@@ -129,10 +141,27 @@ const PackageDetailsPage = () => {
       </DashboardLayout>
     );
   }
-  
-  if (packagesLoading || !currentPackage) {
+
+  if (notFound) {
     return (
-      <DashboardLayout breadcrumbs={breadcrumbs}>
+      <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Package not found</AlertTitle>
+          <AlertDescription>
+            The package you are looking for does not exist or has been deleted.
+          </AlertDescription>
+        </Alert>
+        <Button onClick={() => navigate('/admin/portfolio/packages')} variant="outline">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Packages
+        </Button>
+      </DashboardLayout>
+    );
+  }
+  
+  if (packagesLoading || !packages) {
+    return (
+      <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
         <Card>
           <CardContent className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -143,7 +172,7 @@ const PackageDetailsPage = () => {
   }
   
   return (
-    <DashboardLayout breadcrumbs={breadcrumbs}>
+    <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Edit Package</h1>
@@ -227,7 +256,10 @@ const PackageDetailsPage = () => {
                             step="0.01" 
                             {...field} 
                             value={field.value === null ? '' : field.value}
-                            onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                              field.onChange(value);
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -247,7 +279,10 @@ const PackageDetailsPage = () => {
                             step="0.01" 
                             {...field} 
                             value={field.value === null ? '' : field.value}
-                            onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? null : parseFloat(e.target.value);
+                              field.onChange(value);
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -263,7 +298,11 @@ const PackageDetailsPage = () => {
                         <FormItem>
                           <FormLabel>Description</FormLabel>
                           <FormControl>
-                            <Textarea rows={3} {...field} />
+                            <Textarea 
+                              rows={3} 
+                              {...field} 
+                              value={field.value || ''} 
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -293,39 +332,37 @@ const PackageDetailsPage = () => {
                                   <FormField
                                     control={form.control}
                                     name="services"
-                                    render={({ field }) => {
-                                      return (
-                                        <FormItem
-                                          key={service.id}
-                                          className="flex flex-row items-start space-x-3 space-y-0"
-                                        >
-                                          <FormControl>
-                                            <Checkbox
-                                              checked={field.value?.includes(service.id)}
-                                              onCheckedChange={(checked) => {
-                                                return checked
-                                                  ? field.onChange([...field.value, service.id])
-                                                  : field.onChange(
-                                                      field.value?.filter(
-                                                        (value) => value !== service.id
-                                                      )
+                                    render={({ field }) => (
+                                      <FormItem
+                                        key={service.id}
+                                        className="flex flex-row items-start space-x-3 space-y-0"
+                                      >
+                                        <FormControl>
+                                          <Checkbox
+                                            checked={field.value?.includes(service.id)}
+                                            onCheckedChange={(checked) => {
+                                              return checked
+                                                ? field.onChange([...field.value, service.id])
+                                                : field.onChange(
+                                                    field.value?.filter(
+                                                      (value) => value !== service.id
                                                     )
-                                              }}
-                                            />
-                                          </FormControl>
-                                          <div className="flex items-center gap-2">
-                                            <div className="font-medium leading-none">
-                                              {service.name}
-                                            </div>
-                                            {service.price && (
-                                              <span className="text-sm text-muted-foreground">
-                                                ({formatCurrency(service.price)})
-                                              </span>
-                                            )}
+                                                  )
+                                            }}
+                                          />
+                                        </FormControl>
+                                        <div className="flex items-center gap-2">
+                                          <div className="font-medium leading-none">
+                                            {service.name}
                                           </div>
-                                        </FormItem>
-                                      )
-                                    }}
+                                          {service.price && (
+                                            <span className="text-sm text-muted-foreground">
+                                              ({formatCurrency(service.price)})
+                                            </span>
+                                          )}
+                                        </div>
+                                      </FormItem>
+                                    )}
                                   />
                                 </div>
                               ))}

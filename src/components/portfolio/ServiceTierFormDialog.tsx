@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlusCircle, X } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -64,6 +65,23 @@ export function ServiceTierFormDialog({
       serviceId: serviceId || initialData?.serviceId || '',
     },
   });
+
+  const [featureInput, setFeatureInput] = React.useState('');
+  
+  const features = form.watch('features') || [];
+
+  const addFeature = () => {
+    if (featureInput.trim() !== '') {
+      form.setValue('features', [...features, featureInput.trim()]);
+      setFeatureInput('');
+    }
+  };
+
+  const removeFeature = (index: number) => {
+    const updatedFeatures = [...features];
+    updatedFeatures.splice(index, 1);
+    form.setValue('features', updatedFeatures);
+  };
 
   const handleSubmit = (values: FormData) => {
     // Ensure features is an array
@@ -137,6 +155,56 @@ export function ServiceTierFormDialog({
                 )}
               />
             </div>
+            
+            <FormField
+              control={form.control}
+              name="features"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Features</FormLabel>
+                  <div className="space-y-2">
+                    <div className="flex space-x-2">
+                      <Input 
+                        placeholder="Add feature" 
+                        value={featureInput} 
+                        onChange={(e) => setFeatureInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addFeature();
+                          }
+                        }}
+                      />
+                      <Button type="button" size="sm" onClick={addFeature}>
+                        <PlusCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="mt-2 space-y-1">
+                      {features.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No features added</p>
+                      ) : (
+                        features.map((feature, index) => (
+                          <div key={index} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                            <span className="text-sm">{feature}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFeature(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
             <FormField
               control={form.control}
               name="availability"

@@ -3,6 +3,14 @@ export type InvoiceStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 
 export type InvoicePaymentMethod = 'CREDIT_CARD' | 'BANK_TRANSFER' | 'PAYPAL';
 
+export interface LineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
 export interface Invoice {
   id: string;
   invoiceNumber: string;
@@ -14,7 +22,7 @@ export interface Invoice {
   createdAt: string;
   updatedAt: string;
   paymentMethod: InvoicePaymentMethod | null;
-  lineItems: Record<string, any> | null;
+  lineItems: LineItem[] | null;
 }
 
 export interface CreateInvoiceData {
@@ -24,7 +32,7 @@ export interface CreateInvoiceData {
   status?: InvoiceStatus;
   paymentMethod?: InvoicePaymentMethod;
   invoiceNumber?: string;
-  lineItems?: Record<string, any>;
+  lineItems?: LineItem[];
 }
 
 export interface UpdateInvoiceData {
@@ -32,6 +40,6 @@ export interface UpdateInvoiceData {
   status?: InvoiceStatus;
   dueDate?: string;
   paymentMethod?: InvoicePaymentMethod;
-  lineItems?: Record<string, any>;
+  lineItems?: LineItem[];
   paidAt?: string | null;
 }

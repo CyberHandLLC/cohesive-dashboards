@@ -6,7 +6,7 @@ export interface Lead {
   id: string;
   name: string;
   email: string;
-  phone?: string;
+  phone?: string | null;
   status: LeadStatus;
   leadSource: LeadSource;
   notes: string | null;
@@ -48,4 +48,14 @@ export interface UpdateLeadData {
   followUpDate?: string;
   assignedToId?: string;
   convertedClientId?: string;
+}
+
+export interface LeadMetrics {
+  totalLeads: number;
+  newLeads: number;
+  contactedLeads: number;
+  qualifiedLeads: number;
+  convertedLeads: number;
+  lostLeads: number;
+  leadsBySource: Record<string, number>;
 }

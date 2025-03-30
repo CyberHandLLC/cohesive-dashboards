@@ -34,6 +34,8 @@ export interface Client {
   billingContactId: string | null;
   createdAt: string;
   updatedAt: string;
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
 export interface CreateClientData {
@@ -46,6 +48,8 @@ export interface CreateClientData {
   serviceEndDate?: string;
   accountManagerId?: string;
   billingContactId?: string;
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
 export interface UpdateClientData {
@@ -58,4 +62,22 @@ export interface UpdateClientData {
   serviceEndDate?: string;
   accountManagerId?: string;
   billingContactId?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+}
+
+export interface ClientMetrics {
+  totalServices: number;
+  activeServices: number;
+  pendingInvoices: number;
+  totalSpent: number;
+  openTickets: number;
+}
+
+export interface ClientDashboardData {
+  metrics: ClientMetrics;
+  recentServices: ClientService[];
+  recentInvoices: any[];
+  recentTickets: any[];
+  recentActivity: any[];
 }

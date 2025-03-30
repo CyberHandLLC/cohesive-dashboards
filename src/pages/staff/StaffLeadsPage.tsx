@@ -22,11 +22,9 @@ import { formatDate } from '@/lib/formatters';
 import { Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { Lead, LeadStatus, LeadSource } from '@/types/lead';
 
-type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST';
-type LeadSource = 'WEBSITE' | 'REFERRAL' | 'ADVERTISEMENT' | 'EVENT' | 'OTHER';
-
-interface Lead {
+interface StaffLeadsPage {
   id: string;
   name: string;
   email: string;
@@ -100,11 +98,11 @@ const StaffLeadsPage: React.FC = () => {
       
       // Apply filters
       if (statusFilter && statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as LeadStatus);
       }
       
       if (sourceFilter && sourceFilter !== 'all') {
-        query = query.eq('leadSource', sourceFilter);
+        query = query.eq('leadSource', sourceFilter as LeadSource);
       }
       
       if (startDate) {
@@ -343,6 +341,51 @@ const StaffLeadsPage: React.FC = () => {
       className: "text-right"
     }
   ];
+
+  // Handlers for actions
+  const resetFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+    setSourceFilter('all');
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
+
+  const handleEdit = (lead: Lead) => {
+    // Navigate to the lead edit page or open a modal
+    console.log('Edit lead:', lead);
+    toast({
+      title: "Coming Soon",
+      description: "Lead editing will be available soon",
+    });
+  };
+
+  const handleDelete = (leadId: string) => {
+    // Delete the lead or open a confirmation dialog
+    console.log('Delete lead:', leadId);
+    toast({
+      title: "Coming Soon",
+      description: "Lead deletion will be available soon",
+    });
+  };
+
+  const handleConvert = (lead: Lead) => {
+    // Convert lead to client or open a dialog
+    console.log('Convert lead to client:', lead);
+    toast({
+      title: "Coming Soon",
+      description: "Lead conversion will be available soon",
+    });
+  };
+
+  const handleAssign = (lead: Lead) => {
+    // Open a dialog to assign the lead to another staff member
+    console.log('Assign lead:', lead);
+    toast({
+      title: "Coming Soon",
+      description: "Lead assignment will be available soon",
+    });
+  };
 
   return (
     <DashboardLayout

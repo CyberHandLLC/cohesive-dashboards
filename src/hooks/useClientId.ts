@@ -12,7 +12,7 @@ interface ClientIdData {
 }
 
 export function useClientId(): ClientIdData {
-  const { userId, role } = useRole();
+  const { userId, role, isLoading: roleIsLoading } = useRole();
   const [clientId, setClientId] = useState<string | null>(null);
   const [staffId, setStaffId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -61,12 +61,12 @@ export function useClientId(): ClientIdData {
       }
     }
 
-    if (userId) {
+    if (userId && !roleIsLoading) {
       fetchIdData();
-    } else {
+    } else if (!roleIsLoading) {
       setIsLoading(false);
     }
-  }, [userId, role]);
+  }, [userId, role, roleIsLoading]);
 
   return { userId, clientId, staffId, isLoading, error };
 }

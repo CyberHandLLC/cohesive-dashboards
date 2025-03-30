@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Table,
   TableBody,
@@ -9,115 +9,99 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronUp } from 'lucide-react';
-import { Button } from './button';
 
 export interface Column<T> {
   id: string;
   header: React.ReactNode;
   cell: (item: T) => React.ReactNode;
+  responsive?: boolean;
   className?: string;
-  responsive?: boolean; // If true, only show on desktop
   sortable?: boolean;
+  sortKey?: string;
 }
 
 interface ResponsiveTableProps<T> {
-  columns: Column<T>[];
   data: T[];
-  keyField: keyof T;
+  columns: Column<T>[];
+  keyField: keyof T | ((item: T) => string);
   isLoading?: boolean;
   emptyMessage?: string;
-  loadingMessage?: string;
   searchQuery?: string;
-  expandable?: boolean;
-  renderExpandedRow?: (item: T) => React.ReactNode;
   onRowClick?: (item: T) => void;
-  onSort?: (columnId: string, direction: 'asc' | 'desc') => void;
+  sortColumn?: string;
+  sortDirection?: 'asc' | 'desc';
+  onSort?: (column: string, direction: 'asc' | 'desc') => void;
+  className?: string;
 }
 
 export function ResponsiveTable<T>({
-  columns,
   data,
+  columns,
   keyField,
   isLoading = false,
-  emptyMessage = 'No data found',
-  loadingMessage = 'Loading data...',
-  searchQuery,
-  expandable = false,
-  renderExpandedRow,
+  emptyMessage = 'No data available',
+  searchQuery = '',
   onRowClick,
+  sortColumn,
+  sortDirection,
   onSort,
+  className,
 }: ResponsiveTableProps<T>) {
-  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({});
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-
-  const toggleRow = (id: string, e?: React.MouseEvent) => {
-    if (e) {
-      e.stopPropagation();
+  const getKey = (item: T): string => {
+    if (typeof keyField === 'function') {
+      return keyField(item);
     }
-    setExpandedRows((prev) => ({
-      ...prev,
-      [id]: !prev[id],
-    }));
+    return String(item[keyField]);
   };
 
-  const handleSort = (columnId: string) => {
-    const newDirection = sortColumn === columnId && sortDirection === 'asc' ? 'desc' : 'asc';
-    setSortColumn(columnId);
-    setSortDirection(newDirection);
-    if (onSort) {
-      onSort(columnId, newDirection);
-    }
+  const handleSort = (column: Column<T>) => {
+    if (!column.sortable || !onSort) return;
+    
+    const key = column.sortKey || column.id;
+    const newDirection = sortColumn === key && sortDirection === 'asc' ? 'desc' : 'asc';
+    onSort(key, newDirection);
   };
 
-  // This will ensure we only show a subset of columns on mobile
-  const visibleOnMobileColumns = columns.filter((col) => !col.responsive);
-  const firstColumn = visibleOnMobileColumns[0]; // First column is always visible
-
+  // Show a loading state
   if (isLoading) {
     return (
-      <div className="flex justify-center py-8 text-muted-foreground">
-        {loadingMessage}
+      <div className="flex justify-center py-8">
+        <p className="text-muted-foreground">Loading...</p>
       </div>
     );
   }
 
+  // Show an empty state
   if (data.length === 0) {
     return (
-      <div className="flex justify-center py-8 text-muted-foreground">
-        {searchQuery ? `No results found for "${searchQuery}"` : emptyMessage}
+      <div className="flex justify-center py-8">
+        <p className="text-muted-foreground">
+          {searchQuery ? `No results found for "${searchQuery}"` : emptyMessage}
+        </p>
       </div>
     );
   }
 
+  // Render the table with data
   return (
-    <div className="overflow-x-auto">
+    <div className={cn("w-full overflow-auto", className)}>
       <Table>
         <TableHeader>
           <TableRow>
-            {expandable && (
-              <TableHead className="w-[40px]"></TableHead>
-            )}
             {columns.map((column) => (
-              <TableHead
+              <TableHead 
                 key={column.id}
                 className={cn(
-                  column.sortable && "cursor-pointer",
                   column.responsive && "hidden md:table-cell",
+                  column.sortable && "cursor-pointer hover:text-primary",
                   column.className
                 )}
-                onClick={() => column.sortable && handleSort(column.id)}
+                onClick={() => column.sortable && handleSort(column)}
               >
-                <div className="flex items-center">
+                <div className="flex items-center gap-1">
                   {column.header}
-                  {column.sortable && sortColumn === column.id && (
-                    <span className="ml-1">
-                      {sortDirection === 'asc' ? 
-                        <ChevronUp className="h-4 w-4" /> : 
-                        <ChevronDown className="h-4 w-4" />
-                      }
-                    </span>
+                  {column.sortable && sortColumn === (column.sortKey || column.id) && (
+                    <span>{sortDirection === 'asc' ? '↑' : '↓'}</span>
                   )}
                 </div>
               </TableHead>
@@ -125,78 +109,25 @@ export function ResponsiveTable<T>({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {data.map((item) => {
-            const rowKey = String(item[keyField]);
-            const isExpanded = expandedRows[rowKey];
-            
-            return (
-              <React.Fragment key={rowKey}>
-                <TableRow 
-                  className={cn("group", onRowClick && "cursor-pointer hover:bg-muted/50")}
-                  onClick={() => onRowClick && onRowClick(item)}
-                >
-                  {expandable && (
-                    <TableCell className="w-[40px] p-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0"
-                        onClick={(e) => toggleRow(rowKey, e)}
-                      >
-                        {isExpanded ? 
-                          <ChevronUp className="h-4 w-4" /> : 
-                          <ChevronDown className="h-4 w-4" />
-                        }
-                      </Button>
-                    </TableCell>
+          {data.map((item) => (
+            <TableRow 
+              key={getKey(item)}
+              className={cn(onRowClick && "cursor-pointer hover:bg-muted/50")}
+              onClick={() => onRowClick && onRowClick(item)}
+            >
+              {columns.map((column) => (
+                <TableCell 
+                  key={`${getKey(item)}-${column.id}`}
+                  className={cn(
+                    column.responsive && "hidden md:table-cell", 
+                    column.className
                   )}
-                  
-                  {columns.map((column) => (
-                    <TableCell 
-                      key={`${rowKey}-${column.id}`}
-                      className={cn(
-                        column.responsive && "hidden md:table-cell",
-                        column.className
-                      )}
-                      onClick={(e) => {
-                        if (expandable && column.id === firstColumn?.id && !onRowClick) {
-                          e.stopPropagation();
-                          toggleRow(rowKey);
-                        }
-                      }}
-                    >
-                      {column.cell(item)}
-                      
-                      {/* On mobile, for the first column, show a summary of responsive columns */}
-                      {column.id === firstColumn?.id && columns.some(col => col.responsive) && (
-                        <div className="block md:hidden mt-1 text-xs text-muted-foreground">
-                          {columns.filter(col => col.responsive).slice(0, 2).map((col, idx) => (
-                            <div key={col.id} className="mt-1">
-                              <span className="font-medium">{col.header}: </span>
-                              {col.cell(item)}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                
-                {expandable && isExpanded && renderExpandedRow && (
-                  <TableRow className="bg-muted/30">
-                    <TableCell 
-                      colSpan={columns.length + (expandable ? 1 : 0)}
-                      className="p-0"
-                    >
-                      <div className="p-4">
-                        {renderExpandedRow(item)}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </React.Fragment>
-            );
-          })}
+                >
+                  {column.cell(item)}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
     </div>

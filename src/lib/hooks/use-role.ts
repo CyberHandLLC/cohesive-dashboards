@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { UserRole as Role } from '@/types/user';
@@ -29,8 +28,8 @@ export const useRole = (): { role: UserRole, isLoading: boolean } => {
         console.error('Error fetching user role:', error);
         setRole(null);
       } else {
-        // Convert the role to lowercase for our component props
-        setRole(data.role.toLowerCase() as UserRole);
+        // Keep the role in its original case from the database
+        setRole(data.role);
       }
       
       setIsLoading(false);

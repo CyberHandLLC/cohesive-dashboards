@@ -71,7 +71,7 @@ const StaffAddDialog: React.FC<StaffAddDialogProps> = ({
                   <FormLabel>User</FormLabel>
                   <Select
                     onValueChange={field.onChange}
-                    defaultValue={field.value}
+                    defaultValue={field.value || "select-user"}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -79,6 +79,7 @@ const StaffAddDialog: React.FC<StaffAddDialogProps> = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="select-user" disabled>Select a user</SelectItem>
                       {availableUsers.map(user => (
                         <SelectItem key={user.id} value={user.id}>
                           {user.firstName || user.lastName ? 

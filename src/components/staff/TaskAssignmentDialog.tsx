@@ -31,9 +31,9 @@ import {
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
 
-import { cn } from '@/lib/utils';
 import { CreateTaskData } from '@/hooks/staff/useStaffTasks';
 
 interface StaffMember {
@@ -133,8 +133,8 @@ const TaskAssignmentDialog = ({
                   <FormLabel>Assign To</FormLabel>
                   <Select 
                     onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                    value={field.value}
+                    defaultValue={field.value || "select-staff"}
+                    value={field.value || "select-staff"}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -142,6 +142,7 @@ const TaskAssignmentDialog = ({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
+                      <SelectItem value="select-staff" disabled>Select staff member</SelectItem>
                       {staff.map((member) => (
                         <SelectItem key={member.userId} value={member.userId}>
                           {member.user.firstName || member.user.lastName ? 

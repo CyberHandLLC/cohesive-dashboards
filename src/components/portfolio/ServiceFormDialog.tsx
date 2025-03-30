@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useCategories } from '@/hooks/useCategories';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PlusCircle, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const formSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
@@ -31,6 +33,7 @@ const formSchema = z.object({
   ),
   categoryId: z.string().min(1, { message: "Category is required" }),
   features: z.array(z.string()).default([]),
+  availability: z.enum(['ACTIVE', 'DISCONTINUED', 'COMING_SOON']).default('ACTIVE'),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -51,6 +54,12 @@ export function ServiceFormDialog({
   title,
 }: ServiceFormDialogProps) {
   const { categories } = useCategories();
+  const [featureInput, setFeatureInput] = useState('');
+  const [customFieldKey, setCustomFieldKey] = useState('');
+  const [customFieldValue, setCustomFieldValue] = useState('');
+  const [customFields, setCustomFields] = useState<Record<string, string>>(
+    initialData?.customFields as Record<string, string> || {}
+  );
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -61,16 +70,54 @@ export function ServiceFormDialog({
       monthlyPrice: initialData?.monthlyPrice || undefined,
       categoryId: initialData?.categoryId || '',
       features: initialData?.features || [],
+      availability: initialData?.availability || 'ACTIVE',
     },
   });
 
+  const features = form.watch('features') || [];
+
+  const addFeature = () => {
+    if (featureInput.trim() !== '') {
+      form.setValue('features', [...features, featureInput.trim()]);
+      setFeatureInput('');
+    }
+  };
+
+  const removeFeature = (index: number) => {
+    const updatedFeatures = [...features];
+    updatedFeatures.splice(index, 1);
+    form.setValue('features', updatedFeatures);
+  };
+
+  const addCustomField = () => {
+    if (customFieldKey.trim() !== '' && customFieldValue.trim() !== '') {
+      setCustomFields({
+        ...customFields,
+        [customFieldKey.trim()]: customFieldValue.trim()
+      });
+      setCustomFieldKey('');
+      setCustomFieldValue('');
+    }
+  };
+
+  const removeCustomField = (key: string) => {
+    const newFields = { ...customFields };
+    delete newFields[key];
+    setCustomFields(newFields);
+  };
+
   const handleSubmit = (values: FormData) => {
-    onSubmit(values);
+    const formattedValues = {
+      ...values,
+      features: values.features || [],
+      customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
+    };
+    onSubmit(formattedValues);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
@@ -152,6 +199,123 @@ export function ServiceFormDialog({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="features"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Features</FormLabel>
+                  <div className="space-y-2">
+                    <div className="flex space-x-2">
+                      <Input 
+                        placeholder="Add feature" 
+                        value={featureInput} 
+                        onChange={(e) => setFeatureInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            addFeature();
+                          }
+                        }}
+                      />
+                      <Button type="button" size="sm" onClick={addFeature}>
+                        <PlusCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="mt-2 space-y-1">
+                      {features.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No features added</p>
+                      ) : (
+                        features.map((feature, index) => (
+                          <div key={index} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                            <span className="text-sm">{feature}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeFeature(index)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="availability"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Availability</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select availability" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="ACTIVE">Active</SelectItem>
+                      <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
+                      <SelectItem value="COMING_SOON">Coming Soon</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-2">
+              <FormLabel>Custom Fields</FormLabel>
+              <div className="flex space-x-2">
+                <Input 
+                  placeholder="Key" 
+                  value={customFieldKey}
+                  onChange={(e) => setCustomFieldKey(e.target.value)} 
+                />
+                <Input 
+                  placeholder="Value" 
+                  value={customFieldValue}
+                  onChange={(e) => setCustomFieldValue(e.target.value)} 
+                />
+                <Button type="button" size="sm" onClick={addCustomField}>
+                  <PlusCircle className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="mt-2">
+                {Object.keys(customFields).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No custom fields added</p>
+                ) : (
+                  <div className="space-y-1">
+                    {Object.entries(customFields).map(([key, value]) => (
+                      <div key={key} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{key}</Badge>
+                          <span className="text-sm">{value}</span>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCustomField(key)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            
             <DialogFooter>
               <Button type="submit">Save</Button>
             </DialogFooter>

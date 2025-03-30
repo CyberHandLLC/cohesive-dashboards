@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,12 @@ import { usePackages } from '@/hooks/usePackages';
 import { PackagesTable } from '@/components/portfolio/PackagesTable';
 import { PackageFormDialog } from '@/components/portfolio/PackageFormDialog';
 import { PackageDeleteDialog } from '@/components/portfolio/PackageDeleteDialog';
+import { useNavigate } from 'react-router-dom';
 
 const PackagesPage = () => {
+  const navigate = useNavigate();
+  const [packageClientCount, setPackageClientCount] = useState<number>(0);
+  
   const {
     packages,
     isLoading,
@@ -24,7 +28,32 @@ const PackagesPage = () => {
     setIsDeleteDialogOpen,
     packageToDelete,
     setPackageToDelete,
+    searchTerm,
+    setSearchTerm,
+    loadPackageServices,
+    loadedServices,
+    loadingServices,
+    getPackageClientCount,
   } = usePackages();
+
+  // Handle deleting a package with checks
+  const handleDeletePackage = async (pkg) => {
+    // Get client count for warnings
+    const clientCount = await getPackageClientCount(pkg.id);
+    setPackageClientCount(clientCount);
+    setPackageToDelete(pkg);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Handle package expansion
+  const handlePackageExpand = async (packageId: string) => {
+    loadPackageServices(packageId);
+  };
+
+  // Handle client usage click
+  const handleClientUsageClick = (packageId: string) => {
+    navigate(`/admin/accounts/clients?packageId=${packageId}`);
+  };
 
   const breadcrumbs = [
     { label: 'Admin', href: '/admin' },
@@ -55,11 +84,17 @@ const PackagesPage = () => {
             ) : (
               <PackagesTable 
                 packages={packages || []} 
+                services={loadedServices}
+                clientCounts={packages?.reduce((acc, pkg) => {
+                  return { ...acc, [pkg.id]: 0 };  // Default to 0, will be updated via query
+                }, {})}
+                loadingServices={loadingServices}
                 onEdit={setEditingPackage} 
-                onDelete={(pkg) => {
-                  setPackageToDelete(pkg);
-                  setIsDeleteDialogOpen(true);
-                }} 
+                onDelete={handleDeletePackage}
+                searchQuery={searchTerm}
+                onSearchChange={setSearchTerm}
+                onClientUsageClick={handleClientUsageClick}
+                onPackageExpand={handlePackageExpand}
               />
             )}
           </CardContent>
@@ -88,6 +123,7 @@ const PackagesPage = () => {
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
         package={packageToDelete}
+        clientCount={packageClientCount}
         onConfirm={() => {
           if (packageToDelete) {
             deletePackage(packageToDelete.id);

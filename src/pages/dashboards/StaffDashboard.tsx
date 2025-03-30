@@ -2,7 +2,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import StatsGrid from '@/components/dashboard/StatsGrid';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,6 +9,29 @@ import { Users, MessageSquare, Activity, Target, Calendar, List, Clock } from 'l
 import { formatDate } from '@/lib/formatters';
 import { useStaffDashboard } from '@/hooks/useStaffDashboard';
 import { useClientId } from '@/hooks/useClientId';
+
+const StatsGrid = ({ stats }) => {
+  return (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {stats.map((stat, i) => (
+        <Card key={i}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {stat.title}
+            </CardTitle>
+            <div className="h-4 w-4 text-muted-foreground">
+              {stat.icon}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stat.value}</div>
+            <p className="text-xs text-muted-foreground">{stat.description}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+};
 
 const StaffDashboard = () => {
   const { userId, isLoading: userIdLoading, error: userIdError } = useClientId();

@@ -26,6 +26,9 @@ import { useClientId } from '@/hooks/useClientId';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/formatters';
 
+// Define ClientStatus type to match database
+type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'PAST';
+
 const StaffClientsPage = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,7 +73,8 @@ const StaffClientsPage = () => {
       
       // Apply filters
       if (statusFilter && statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        // Type assertion to ensure statusFilter is a valid ClientStatus
+        query = query.eq('status', statusFilter as ClientStatus);
       }
       
       if (clientIdParam) {
@@ -276,7 +280,7 @@ const StaffClientsPage = () => {
                                 <Mail className="h-4 w-4" />
                               </a>
                             </Button>
-                            <Button variant="primary" size="sm" asChild>
+                            <Button variant="default" size="sm" asChild>
                               <Link to={`/staff/accounts/clients/${client.id}`}>
                                 View
                               </Link>

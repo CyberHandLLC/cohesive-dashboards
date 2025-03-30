@@ -61,6 +61,12 @@ import ObserverContactPage from "./pages/observer/ContactPage";
 // Add import for the new StaffDetailsPage
 import StaffDetailsPage from "./pages/accounts/StaffDetailsPage";
 
+// Staff Pages
+import StaffClientsPage from "./pages/staff/StaffClientsPage";
+import StaffSupportPage from "./pages/staff/StaffSupportPage";
+import StaffLeadsPage from "./pages/staff/StaffLeadsPage";
+import StaffTasksPage from "./pages/staff/StaffTasksPage";
+
 const queryClient = new QueryClient();
 
 // Helper component to wrap dashboard routes with DashboardShell
@@ -122,6 +128,10 @@ const App = () => (
 
           {/* Staff Routes */}
           <Route path="/staff" element={<DashboardRoute element={<StaffDashboard />} />} />
+          <Route path="/staff/accounts/clients" element={<DashboardRoute element={<StaffClientsPage />} />} />
+          <Route path="/staff/accounts/support" element={<DashboardRoute element={<StaffSupportPage />} />} />
+          <Route path="/staff/accounts/leads" element={<DashboardRoute element={<StaffLeadsPage />} />} />
+          <Route path="/staff/tasks" element={<DashboardRoute element={<StaffTasksPage />} />} />
 
           {/* Client Routes */}
           <Route path="/client" element={<DashboardRoute element={<ClientDashboard />} />} />

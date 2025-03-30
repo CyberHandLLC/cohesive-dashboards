@@ -20,7 +20,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { CheckCircle2, AlertCircle, Search, Filter, Calendar } from 'lucide-react';
+import { 
+  AlertCircle, 
+  Search, 
+  CheckSquare, 
+  Clock,
+  Calendar
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useClientId } from '@/hooks/useClientId';
 import { useToast } from '@/hooks/use-toast';
@@ -31,9 +37,8 @@ const StaffTasksPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [priorityFilter, setPriorityFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [dueDateFilter, setDueDateFilter] = useState<'today' | 'week' | 'month' | 'all'>('all');
+  const [timeRangeFilter, setTimeRangeFilter] = useState('all');
+  
   const { userId, isLoading: userIdLoading, error: userIdError } = useClientId();
   const { toast } = useToast();
   
@@ -46,7 +51,7 @@ const StaffTasksPage = () => {
     if (userId) {
       fetchTasks();
     }
-  }, [userId, searchQuery, statusFilter, priorityFilter, typeFilter, dueDateFilter]);
+  }, [userId, searchQuery, statusFilter, timeRangeFilter]);
 
   const fetchTasks = async () => {
     if (!userId) return;
@@ -54,50 +59,43 @@ const StaffTasksPage = () => {
     setIsLoading(true);
     
     try {
-      // Fetch Tasks
       let query = supabase
         .from('Task')
         .select('*')
         .eq('userId', userId);
-        
+      
+      // Apply filters
       if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter.toUpperCase());
+        query = query.eq('status', statusFilter);
       }
-        
+      
       if (searchQuery) {
-        query = query.ilike('title', `%${searchQuery}%`);
-      }
-        
-      if (dueDateFilter !== 'all') {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        if (dueDateFilter === 'today') {
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          query = query.gte('dueDate', today.toISOString()).lt('dueDate', tomorrow.toISOString());
-        } else if (dueDateFilter === 'week') {
-          const nextWeek = new Date(today);
-          nextWeek.setDate(nextWeek.getDate() + 7);
-          query = query.lt('dueDate', nextWeek.toISOString());
-        } else if (dueDateFilter === 'month') {
-          const nextMonth = new Date(today);
-          nextMonth.setMonth(nextMonth.getMonth() + 1);
-          query = query.lt('dueDate', nextMonth.toISOString());
-        }
-      }
-        
-      const { data: taskData, error: taskError } = await query.order('dueDate', { ascending: true });
-      
-      if (taskError) {
-        throw taskError;
+        query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
       }
       
-      // Fetch supplementary data like support tickets and leads if needed
-      // This is a simplified version - in a real app you might want to include 
-      // tickets that need attention as tasks, leads that need follow-up, etc.
+      // Apply time range filter
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
       
-      setTasks(taskData || []);
+      if (timeRangeFilter === 'today') {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        query = query.gte('dueDate', today.toISOString()).lt('dueDate', tomorrow.toISOString());
+      } else if (timeRangeFilter === 'week') {
+        const nextWeek = new Date(today);
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        query = query.gte('dueDate', today.toISOString()).lt('dueDate', nextWeek.toISOString());
+      } else if (timeRangeFilter === 'month') {
+        const nextMonth = new Date(today);
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        query = query.gte('dueDate', today.toISOString()).lt('dueDate', nextMonth.toISOString());
+      }
+      
+      const { data, error } = await query.order('dueDate', { ascending: true });
+      
+      if (error) throw error;
+      
+      setTasks(data || []);
     } catch (error) {
       console.error('Error fetching tasks:', error);
       toast({
@@ -110,27 +108,29 @@ const StaffTasksPage = () => {
     }
   };
 
-  const handleStatusChange = async (taskId: string, newStatus: string) => {
+  const updateTaskStatus = async (taskId: string, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('Task')
         .update({ 
-          status: newStatus, 
-          updatedAt: new Date().toISOString()
+          status: newStatus,
+          progress: newStatus === 'COMPLETED' ? 100 : 50
         })
         .eq('id', taskId);
         
       if (error) throw error;
       
       toast({
-        title: "Task updated",
+        title: "Task Updated",
         description: `Task status changed to ${newStatus}`,
       });
       
-      // Optimistically update the UI
-      setTasks(tasks.map(task => task.id === taskId ? { ...task, status: newStatus } : task));
+      // Update the local state
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, status: newStatus, progress: newStatus === 'COMPLETED' ? 100 : 50 } : task
+      ));
     } catch (error) {
-      console.error('Error updating task:', error);
+      console.error('Error updating task status:', error);
       toast({
         title: "Error",
         description: "Could not update task status",
@@ -142,46 +142,40 @@ const StaffTasksPage = () => {
   const resetFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
-    setPriorityFilter('all');
-    setTypeFilter('all');
-    setDueDateFilter('all');
-  };
-
-  const getPriorityBadge = (priority: string) => {
-    switch (priority) {
-      case 'HIGH':
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-red-100 text-red-800">
-          <AlertCircle className="w-3 h-3 mr-1" /> High
-        </span>;
-      case 'MEDIUM':
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-yellow-100 text-yellow-800">
-          Medium
-        </span>;
-      default:
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-green-100 text-green-800">
-          Low
-        </span>;
-    }
+    setTimeRangeFilter('all');
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'COMPLETED':
         return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-green-100 text-green-800">
-          <CheckCircle2 className="w-3 h-3 mr-1" /> Completed
+          Completed
         </span>;
       case 'IN_PROGRESS':
         return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-800">
           In Progress
         </span>;
-      default:
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-800">
+      default: // PENDING
+        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-yellow-100 text-yellow-800">
           Pending
         </span>;
     }
   };
 
-  // Display loading or error state
+  const getProgressBar = (progress: number) => {
+    return (
+      <div className="w-full bg-gray-200 rounded-full h-2.5">
+        <div 
+          className={`h-2.5 rounded-full ${
+            progress >= 100 ? 'bg-green-600' : progress > 50 ? 'bg-blue-600' : 'bg-yellow-600'
+          }`}
+          style={{ width: `${progress}%` }}
+        ></div>
+      </div>
+    );
+  };
+
+  // Display loading or error state if needed
   if (userIdLoading) {
     return (
       <DashboardLayout 
@@ -223,16 +217,15 @@ const StaffTasksPage = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold">My Tasks</h1>
           <Button>
-            <Calendar className="h-4 w-4 mr-2" />
-            Create Task
+            <CheckSquare className="mr-2 h-4 w-4" /> Add Task
           </Button>
         </div>
         
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
-            <div className="flex flex-col md:flex-row gap-4 mb-2">
-              <div className="relative flex-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   placeholder="Search tasks..."
@@ -241,43 +234,34 @@ const StaffTasksPage = () => {
                   className="pl-10"
                 />
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger>
+                  <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="PENDING">Pending</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
                   </SelectContent>
                 </Select>
-                <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Priorities</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="low">Low</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={dueDateFilter} onValueChange={setDueDateFilter}>
-                  <SelectTrigger>
+                <Select value={timeRangeFilter} onValueChange={setTimeRangeFilter}>
+                  <SelectTrigger className="w-[140px]">
                     <SelectValue placeholder="Due Date" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Dates</SelectItem>
-                    <SelectItem value="today">Due Today</SelectItem>
-                    <SelectItem value="week">Due This Week</SelectItem>
-                    <SelectItem value="month">Due This Month</SelectItem>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">This Week</SelectItem>
+                    <SelectItem value="month">This Month</SelectItem>
                   </SelectContent>
                 </Select>
-                <Button variant="outline" onClick={resetFilters} className="w-full">
-                  <Filter className="h-4 w-4 mr-2" /> Reset
-                </Button>
+                {(searchQuery || statusFilter !== 'all' || timeRangeFilter !== 'all') && (
+                  <Button variant="outline" onClick={resetFilters}>
+                    Reset
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
@@ -300,9 +284,9 @@ const StaffTasksPage = () => {
                     <TableRow>
                       <TableHead>Title</TableHead>
                       <TableHead className="hidden md:table-cell">Description</TableHead>
-                      <TableHead>Due Date</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Progress</TableHead>
+                      <TableHead className="hidden lg:table-cell">Due Date</TableHead>
+                      <TableHead className="hidden sm:table-cell">Progress</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -311,53 +295,49 @@ const StaffTasksPage = () => {
                       <TableRow key={task.id}>
                         <TableCell className="font-medium">{task.title}</TableCell>
                         <TableCell className="hidden md:table-cell">
-                          {task.description ? (
-                            task.description.length > 50 
-                              ? `${task.description.substring(0, 50)}...` 
-                              : task.description
-                          ) : (
-                            <span className="text-muted-foreground">No description</span>
-                          )}
+                          <div className="max-w-[300px] truncate">
+                            {task.description || <span className="text-muted-foreground">No description</span>}
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell>{getStatusBadge(task.status)}</TableCell>
+                        <TableCell className="hidden lg:table-cell">
                           {task.dueDate ? (
-                            <span className={`${
-                              new Date(task.dueDate) < new Date() ? 'text-red-600' : ''
-                            }`}>
+                            <span className="flex items-center">
+                              <Calendar className="mr-2 h-4 w-4" />
                               {formatDate(task.dueDate)}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">No due date</span>
+                            <span className="text-muted-foreground">Not set</span>
                           )}
                         </TableCell>
-                        <TableCell>{getStatusBadge(task.status)}</TableCell>
-                        <TableCell>
-                          <div className="w-full bg-gray-200 rounded-full h-2.5">
-                            <div 
-                              className="bg-blue-600 h-2.5 rounded-full" 
-                              style={{ width: `${task.progress}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs text-gray-500 mt-1">{task.progress}%</span>
+                        <TableCell className="hidden sm:table-cell">
+                          {getProgressBar(task.progress)}
+                          <span className="text-xs text-muted-foreground">{task.progress}%</span>
                         </TableCell>
                         <TableCell className="text-right">
-                          {task.status !== 'COMPLETED' ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleStatusChange(task.id, 'COMPLETED')}
-                            >
-                              Complete
+                          <div className="flex justify-end gap-2">
+                            {task.status === 'PENDING' && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => updateTaskStatus(task.id, 'IN_PROGRESS')}
+                              >
+                                Start
+                              </Button>
+                            )}
+                            {task.status === 'IN_PROGRESS' && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => updateTaskStatus(task.id, 'COMPLETED')}
+                              >
+                                Complete
+                              </Button>
+                            )}
+                            <Button variant="default" size="sm">
+                              View Details
                             </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleStatusChange(task.id, 'PENDING')}
-                            >
-                              Reopen
-                            </Button>
-                          )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -367,13 +347,13 @@ const StaffTasksPage = () => {
             ) : (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="rounded-full bg-primary/10 p-3 mb-4">
-                  <CheckCircle2 className="h-6 w-6 text-primary" />
+                  <CheckSquare className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="font-medium text-xl mb-1">All caught up!</h3>
+                <h3 className="font-medium text-xl mb-1">No tasks found</h3>
                 <p className="text-muted-foreground text-center max-w-sm">
-                  You've completed all your tasks or no tasks match your current filters.
+                  You have no tasks assigned or none match your current filters.
                 </p>
-                {(searchQuery || statusFilter !== 'all' || priorityFilter !== 'all' || dueDateFilter !== 'all') && (
+                {(searchQuery || statusFilter !== 'all' || timeRangeFilter !== 'all') && (
                   <Button variant="outline" onClick={resetFilters} className="mt-4">
                     Clear filters
                   </Button>

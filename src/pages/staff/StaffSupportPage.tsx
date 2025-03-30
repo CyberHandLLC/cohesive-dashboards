@@ -33,6 +33,10 @@ import { useClientId } from '@/hooks/useClientId';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/formatters';
 
+// Define types for the ticket status and priority
+type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
 const StaffSupportPage = () => {
   const [tickets, setTickets] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
@@ -119,13 +123,13 @@ const StaffSupportPage = () => {
         `)
         .eq('staffId', userId);
       
-      // Apply filters
+      // Apply filters with type casting for safety
       if (statusFilter && statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as TicketStatus);
       }
       
       if (priorityFilter && priorityFilter !== 'all') {
-        query = query.eq('priority', priorityFilter);
+        query = query.eq('priority', priorityFilter as TicketPriority);
       }
       
       if (clientFilter && clientFilter !== 'all') {
@@ -159,7 +163,7 @@ const StaffSupportPage = () => {
     }
   };
 
-  const updateTicketStatus = async (ticketId: string, newStatus: string) => {
+  const updateTicketStatus = async (ticketId: string, newStatus: TicketStatus) => {
     try {
       let updateData: any = { 
         status: newStatus, 
@@ -177,15 +181,14 @@ const StaffSupportPage = () => {
         
       if (error) throw error;
       
-      // Log this action
+      // Log this action in audit log
       await supabase
         .from('AuditLog')
         .insert({
           userId,
           action: 'UPDATE',
           resource: 'SUPPORT_TICKET',
-          details: { ticketId, status: { to: newStatus } },
-          status: 'SUCCESS'
+          details: { ticketId, status: { to: newStatus } }
         });
       
       toast({
@@ -419,7 +422,7 @@ const StaffSupportPage = () => {
                                 Resolve
                               </Button>
                             )}
-                            <Button variant="primary" size="sm" asChild>
+                            <Button variant="default" size="sm" asChild>
                               <Link to={`/staff/accounts/support/${ticket.id}`}>
                                 View
                               </Link>

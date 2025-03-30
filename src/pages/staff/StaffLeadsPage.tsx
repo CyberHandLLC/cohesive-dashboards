@@ -33,6 +33,10 @@ import { useClientId } from '@/hooks/useClientId';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/formatters';
 
+// Define lead status and source types
+type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST';
+type LeadSource = 'WEBSITE' | 'REFERRAL' | 'ADVERTISEMENT' | 'EVENT' | 'OTHER';
+
 const StaffLeadsPage = () => {
   const [leads, setLeads] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,13 +84,13 @@ const StaffLeadsPage = () => {
         `)
         .eq('assignedToId', userId);
       
-      // Apply filters
+      // Apply filters with type casting for safety
       if (statusFilter && statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
+        query = query.eq('status', statusFilter as LeadStatus);
       }
       
       if (sourceFilter && sourceFilter !== 'all') {
-        query = query.eq('leadSource', sourceFilter);
+        query = query.eq('leadSource', sourceFilter as LeadSource);
       }
       
       if (leadIdParam) {
@@ -114,7 +118,7 @@ const StaffLeadsPage = () => {
     }
   };
 
-  const updateLeadStatus = async (leadId: string, newStatus: string) => {
+  const updateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
     try {
       const { error } = await supabase
         .from('Lead')
@@ -318,7 +322,7 @@ const StaffLeadsPage = () => {
                                 </a>
                               </Button>
                             )}
-                            <Button variant="primary" size="sm" asChild>
+                            <Button variant="default" size="sm" asChild>
                               <Link to={`/staff/accounts/leads/${lead.id}`}>
                                 View
                               </Link>

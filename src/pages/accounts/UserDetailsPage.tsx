@@ -13,7 +13,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import UserRoleBadge from '@/components/users/UserRoleBadge';
-import { UserStatusBadge } from '@/components/users/UserStatusBadge';
+import UserStatusBadge from '@/components/users/UserStatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
@@ -40,6 +40,9 @@ type UserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED';
 // Fix the interface to correctly match the UserType from useUsers
 interface User extends Omit<UserType, 'emailVerified'> {
   emailVerified?: boolean;
+  phone?: string; // Add phone property
+  lastLogin?: string; // Add lastLogin property
+  companyName?: string; // Add companyName property
 }
 
 interface Client {
@@ -196,7 +199,7 @@ const UserDetailsPage = () => {
                   <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
                   <p>{user.email}</p>
                   {user.emailVerified && (
-                    <Check className="h-4 w-4 ml-2 text-green-500" title="Email Verified" />
+                    <Check className="h-4 w-4 ml-2 text-green-500" aria-label="Email Verified" />
                   )}
                 </div>
               </div>

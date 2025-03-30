@@ -148,8 +148,8 @@ const StaffDetailsPage = () => {
       
       setAssignedClients(clientsData || []);
       
-      // Fetch support tickets assigned to this staff member
-      console.log('Fetching support tickets for staff ID:', staffId);
+      // Debugging: Log staff ID we're using for ticket lookup
+      console.log('Using staff ID for ticket lookup:', staffId);
       
       // Debug to see if there are tickets in the system
       const { data: allTickets } = await supabase

@@ -88,10 +88,13 @@ const App = () => (
           
           {/* Admin Client Detail Routes */}
           <Route path="/admin/accounts/clients/:id/overview" element={<DashboardRoute element={<AdminClientProfilePage />} />} />
-          <Route path="/admin/accounts/clients/services" element={<DashboardRoute element={<AdminClientServicesPage />} />} />
-          <Route path="/admin/accounts/clients/invoices" element={<DashboardRoute element={<AdminClientInvoicesPage />} />} />
+          <Route path="/admin/accounts/clients/:id/services" element={<DashboardRoute element={<AdminClientServicesPage />} />} />
+          <Route path="/admin/accounts/clients/:id/invoices" element={<DashboardRoute element={<AdminClientInvoicesPage />} />} />
+          <Route path="/admin/accounts/clients/:id/support" element={<DashboardRoute element={<AdminClientSupportPage />} />} />
+          <Route path="/admin/accounts/clients/:id/contacts" element={<DashboardRoute element={<ClientContactsPage />} />} />
+          
+          {/* Add the collective support page route */}
           <Route path="/admin/accounts/clients/support" element={<DashboardRoute element={<AdminClientSupportPage />} />} />
-          <Route path="/admin/accounts/clients/contacts" element={<DashboardRoute element={<ClientContactsPage />} />} />
           
           {/* Admin Portfolio Routes */}
           <Route path="/admin/portfolio/categories" element={<DashboardRoute element={<CategoriesPage />} />} />

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -40,7 +40,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useForm } from 'react-hook-form';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
-import { PlusCircle, Search, Edit, Trash2 } from 'lucide-react';
+import { PlusCircle, Search, Edit, Trash2, Users } from 'lucide-react';
 import { formatDate } from '@/lib/formatters';
 import SubMenuTabs from '@/components/navigation/SubMenuTabs';
 
@@ -66,6 +66,10 @@ interface Ticket {
     firstName: string;
     lastName: string;
   } | null;
+  client?: {
+    id: string;
+    companyName: string;
+  } | null;
 }
 
 interface TicketFormValues {
@@ -75,6 +79,7 @@ interface TicketFormValues {
   category: TicketCategory;
   status: TicketStatus;
   staffId?: string | null;
+  clientId?: string | null;
 }
 
 interface StaffMember {
@@ -84,17 +89,25 @@ interface StaffMember {
   email: string;
 }
 
+interface Client {
+  id: string;
+  companyName: string;
+}
+
 const AdminClientSupportPage = () => {
   const { toast } = useToast();
   const { id: clientId } = useParams<{ id: string }>();
+  const location = useLocation();
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentTicket, setCurrentTicket] = useState<Ticket | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<TicketStatus | 'ALL'>('ALL');
+  const [isAllTicketsView, setIsAllTicketsView] = useState(false);
 
   const form = useForm<TicketFormValues>({
     defaultValues: {
@@ -103,24 +116,37 @@ const AdminClientSupportPage = () => {
       priority: 'MEDIUM',
       category: 'GENERAL',
       status: 'OPEN',
-      staffId: null
+      staffId: null,
+      clientId: clientId || null
     },
   });
+
+  useEffect(() => {
+    // Check if we're on the collective view page
+    const isCollectiveView = location.pathname === '/admin/accounts/clients/support';
+    setIsAllTicketsView(isCollectiveView);
+  }, [location.pathname]);
   
   // Fetch tickets and staff members
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      console.log("Fetching tickets for client:", clientId);
+      console.log("Fetching tickets. Client ID:", clientId, "All tickets view:", isAllTicketsView);
       
-      // Fetch tickets
-      const { data: ticketData, error: ticketError } = await supabase
+      // Fetch tickets - if clientId is provided, filter by it, otherwise fetch all
+      let ticketQuery = supabase
         .from('SupportTicket')
         .select(`
           *,
-          staff:staffId(id, firstName, lastName)
-        `)
-        .eq('clientId', clientId);
+          staff:staffId(id, firstName, lastName),
+          client:clientId(id, companyName)
+        `);
+        
+      if (clientId && !isAllTicketsView) {
+        ticketQuery = ticketQuery.eq('clientId', clientId);
+      }
+      
+      const { data: ticketData, error: ticketError } = await ticketQuery;
         
       if (ticketError) {
         console.error("Ticket fetch error:", ticketError);
@@ -146,6 +172,21 @@ const AdminClientSupportPage = () => {
       }
       
       console.log("Staff fetched:", staffData);
+
+      // Fetch clients if in all tickets view
+      if (isAllTicketsView) {
+        const { data: clientsData, error: clientsError } = await supabase
+          .from('Client')
+          .select('id, companyName');
+
+        if (clientsError) {
+          console.error("Clients fetch error:", clientsError);
+          throw clientsError;
+        }
+
+        console.log("Clients fetched:", clientsData);
+        setClients(clientsData as Client[]);
+      }
       
       setTickets(ticketData as Ticket[]);
       setStaffMembers(staffData as StaffMember[]);
@@ -162,10 +203,8 @@ const AdminClientSupportPage = () => {
   };
 
   useEffect(() => {
-    if (clientId) {
-      fetchData();
-    }
-  }, [clientId]);
+    fetchData();
+  }, [clientId, isAllTicketsView]);
 
   const handleCreateTicket = () => {
     setIsEditMode(false);
@@ -176,7 +215,8 @@ const AdminClientSupportPage = () => {
       priority: 'MEDIUM',
       category: 'GENERAL',
       status: 'OPEN',
-      staffId: null
+      staffId: null,
+      clientId: clientId || null
     });
     setIsDialogOpen(true);
   };
@@ -190,7 +230,8 @@ const AdminClientSupportPage = () => {
       priority: ticket.priority,
       category: ticket.category,
       status: ticket.status,
-      staffId: ticket.staffId
+      staffId: ticket.staffId,
+      clientId: ticket.clientId
     });
     setIsDialogOpen(true);
   };
@@ -222,7 +263,18 @@ const AdminClientSupportPage = () => {
 
   const onSubmit = async (values: TicketFormValues) => {
     try {
-      if (!clientId) {
+      if (isAllTicketsView && !values.clientId) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please select a client for this ticket",
+        });
+        return;
+      }
+
+      const ticketClientId = values.clientId || clientId;
+      
+      if (!ticketClientId) {
         throw new Error("Client ID is missing");
       }
       
@@ -237,6 +289,7 @@ const AdminClientSupportPage = () => {
             category: values.category,
             status: values.status,
             staffId: values.staffId || null,
+            clientId: ticketClientId,
             resolvedAt: values.status === 'RESOLVED' ? new Date().toISOString() : null
           })
           .eq('id', currentTicket.id);
@@ -259,7 +312,7 @@ const AdminClientSupportPage = () => {
               category: values.category,
               status: values.status,
               staffId: values.staffId || null,
-              clientId
+              clientId: ticketClientId
             },
           ]);
           
@@ -340,7 +393,8 @@ const AdminClientSupportPage = () => {
   const filteredTickets = tickets.filter((ticket) => {
     const matchesSearch = 
       ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ticket.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      ticket.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (ticket.client?.companyName?.toLowerCase().includes(searchQuery.toLowerCase()));
     
     const matchesStatus = statusFilter === 'ALL' || ticket.status === statusFilter;
     
@@ -368,32 +422,48 @@ const AdminClientSupportPage = () => {
     }
   };
 
-  // Create submenu tabs
-  const subMenuItems = [
-    { value: "overview", label: "Overview", href: `/admin/accounts/clients/${clientId}/overview` },
-    { value: "services", label: "Services", href: `/admin/accounts/clients/${clientId}/services` },
-    { value: "invoices", label: "Invoices", href: `/admin/accounts/clients/${clientId}/invoices` },
-    { value: "support", label: "Support", href: `/admin/accounts/clients/${clientId}/support` },
-    { value: "contacts", label: "Contacts", href: `/admin/accounts/clients/${clientId}/contacts` },
-  ];
+  // Create submenu tabs based on whether we're in a specific client view
+  const getSubMenuItems = () => {
+    if (clientId) {
+      return [
+        { value: "overview", label: "Overview", href: `/admin/accounts/clients/${clientId}/overview` },
+        { value: "services", label: "Services", href: `/admin/accounts/clients/${clientId}/services` },
+        { value: "invoices", label: "Invoices", href: `/admin/accounts/clients/${clientId}/invoices` },
+        { value: "support", label: "Support", href: `/admin/accounts/clients/${clientId}/support` },
+        { value: "contacts", label: "Contacts", href: `/admin/accounts/clients/${clientId}/contacts` },
+      ];
+    }
+    return undefined;
+  };
 
   // Set up breadcrumbs for navigation
-  const breadcrumbs = [
-    { label: 'Admin', href: '/admin' },
-    { label: 'Accounts', href: '/admin/accounts' },
-    { label: 'Clients', href: '/admin/accounts/clients' },
-    { label: clientId ? clientId : 'Client', href: `/admin/accounts/clients/${clientId}/overview` },
-    { label: 'Support' }
-  ];
+  const getBreadcrumbs = () => {
+    if (clientId) {
+      return [
+        { label: 'Admin', href: '/admin' },
+        { label: 'Accounts', href: '/admin/accounts' },
+        { label: 'Clients', href: '/admin/accounts/clients' },
+        { label: clientId ? clientId : 'Client', href: `/admin/accounts/clients/${clientId}/overview` },
+        { label: 'Support' }
+      ];
+    } else {
+      return [
+        { label: 'Admin', href: '/admin' },
+        { label: 'Accounts', href: '/admin/accounts' },
+        { label: 'Clients', href: '/admin/accounts/clients' },
+        { label: 'Support' }
+      ];
+    }
+  };
 
   return (
     <DashboardLayout
-      breadcrumbs={breadcrumbs}
-      subMenuItems={subMenuItems}
+      breadcrumbs={getBreadcrumbs()}
+      subMenuItems={getSubMenuItems()}
       role="admin"
     >
       <div className="space-y-6">
-        {!clientId ? (
+        {!clientId && !isAllTicketsView ? (
           <Card>
             <CardContent className="py-6">
               <div className="text-center text-muted-foreground">
@@ -404,7 +474,9 @@ const AdminClientSupportPage = () => {
         ) : (
           <>
             <div className="flex justify-between items-center">
-              <h1 className="text-2xl font-bold">Support Tickets</h1>
+              <h1 className="text-2xl font-bold">
+                {isAllTicketsView ? "All Support Tickets" : "Client Support Tickets"}
+              </h1>
               <Button onClick={handleCreateTicket}>
                 <PlusCircle className="h-4 w-4 mr-2" />
                 New Ticket
@@ -420,7 +492,7 @@ const AdminClientSupportPage = () => {
                   <div className="relative flex-1">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Search tickets..."
+                      placeholder={isAllTicketsView ? "Search tickets or clients..." : "Search tickets..."}
                       className="pl-8"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -449,7 +521,9 @@ const AdminClientSupportPage = () => {
               <CardHeader>
                 <CardTitle>Support Tickets</CardTitle>
                 <CardDescription>
-                  Manage support tickets for this client
+                  {isAllTicketsView 
+                    ? "Manage all support tickets" 
+                    : "Manage support tickets for this client"}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -467,6 +541,7 @@ const AdminClientSupportPage = () => {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Title</TableHead>
+                          {isAllTicketsView && <TableHead>Client</TableHead>}
                           <TableHead>Status</TableHead>
                           <TableHead>Priority</TableHead>
                           <TableHead>Category</TableHead>
@@ -479,6 +554,9 @@ const AdminClientSupportPage = () => {
                         {filteredTickets.map((ticket) => (
                           <TableRow key={ticket.id}>
                             <TableCell className="font-medium">{ticket.title}</TableCell>
+                            {isAllTicketsView && (
+                              <TableCell>{ticket.client?.companyName || "Unknown"}</TableCell>
+                            )}
                             <TableCell>
                               <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusBadgeColor(ticket.status)}`}>
                                 {ticket.status.replace('_', ' ')}
@@ -559,12 +637,42 @@ const AdminClientSupportPage = () => {
             <DialogDescription>
               {isEditMode 
                 ? "Update the details of this support ticket" 
-                : "Create a new support ticket for this client"}
+                : "Create a new support ticket"}
             </DialogDescription>
           </DialogHeader>
           
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {isAllTicketsView && (
+                <FormField
+                  control={form.control}
+                  name="clientId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Client</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange}
+                        value={field.value || ""}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select client" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.companyName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              
               <FormField
                 control={form.control}
                 name="title"

@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import SubMenuTabs, { SubMenuItem } from '@/components/navigation/SubMenuTabs';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   CalendarIcon, 
@@ -19,7 +18,6 @@ import {
   Edit
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { SubMenuItem } from '@/components/navigation/SubMenuTabs';
 
 type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'PAST';
 
@@ -76,12 +74,13 @@ const AdminClientProfilePage = () => {
     { label: client?.companyName || 'Client Details' }
   ];
   
+  // Updated submenu items with correct paths
   const subMenuItems: SubMenuItem[] = [
     { label: 'Overview', href: `/admin/accounts/clients/${id}/overview`, value: 'overview' },
-    { label: 'Services', href: `/admin/accounts/clients/services?clientId=${id}`, value: 'services' },
-    { label: 'Invoices', href: `/admin/accounts/clients/invoices?clientId=${id}`, value: 'invoices' },
-    { label: 'Support', href: `/admin/accounts/clients/support?clientId=${id}`, value: 'support' },
-    { label: 'Contacts', href: `/admin/accounts/clients/contacts?clientId=${id}`, value: 'contacts' },
+    { label: 'Services', href: `/admin/accounts/clients/${id}/services`, value: 'services' },
+    { label: 'Invoices', href: `/admin/accounts/clients/${id}/invoices`, value: 'invoices' },
+    { label: 'Support', href: `/admin/accounts/clients/${id}/support`, value: 'support' },
+    { label: 'Contacts', href: `/admin/accounts/clients/${id}/contacts`, value: 'contacts' },
   ];
 
   useEffect(() => {
@@ -204,18 +203,6 @@ const AdminClientProfilePage = () => {
     });
   };
 
-  const handleTabClick = (value: string) => {
-    setActiveTab(value);
-    
-    // Navigate based on the selected tab
-    if (value !== 'overview') {
-      const menuItem = subMenuItems.find(item => item.value === value);
-      if (menuItem) {
-        navigate(menuItem.href);
-      }
-    }
-  };
-
   return (
     <DashboardLayout 
       breadcrumbs={breadcrumbs} 
@@ -228,183 +215,180 @@ const AdminClientProfilePage = () => {
         </div>
       ) : client ? (
         <div className="space-y-6">
-          <Tabs value={activeTab} onValueChange={handleTabClick} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 mb-6">
-              {subMenuItems.map((item) => (
-                <TabsTrigger key={item.value} value={item.value}>
-                  {item.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
+          <SubMenuTabs 
+            items={subMenuItems}
+            basePath={`/admin/accounts/clients/${id}`}
+            className="mb-6"
+          />
+          
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Active Services</CardTitle>
+                <Package2 className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.serviceCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  Subscribed services
+                </p>
+              </CardContent>
+            </Card>
             
-            <TabsContent value="overview">
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Active Services</CardTitle>
-                    <Package2 className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{metrics.serviceCount}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Subscribed services
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Invoices</CardTitle>
-                    <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{metrics.invoiceCount}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Total invoices
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Support Tickets</CardTitle>
-                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{metrics.openTicketsCount}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Open tickets
-                    </p>
-                  </CardContent>
-                </Card>
-                
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Contacts</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">{metrics.contactsCount}</div>
-                    <p className="text-xs text-muted-foreground">
-                      Registered contacts
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>
-              
-              <div className="grid gap-4 md:grid-cols-2">
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle>Client Details</CardTitle>
-                    <Button variant="ghost" size="icon" onClick={handleEditClient}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium text-muted-foreground">Status</div>
-                      <div>{getStatusBadge(client.status)}</div>
-                    </div>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Invoices</CardTitle>
+                <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.invoiceCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  Total invoices
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Support Tickets</CardTitle>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.openTicketsCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  Open tickets
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Contacts</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{metrics.contactsCount}</div>
+                <p className="text-xs text-muted-foreground">
+                  Registered contacts
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+          
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle>Client Details</CardTitle>
+                <Button variant="ghost" size="icon" onClick={handleEditClient}>
+                  <Edit className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-muted-foreground">Status</div>
+                  <div>{getStatusBadge(client.status)}</div>
+                </div>
 
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium text-muted-foreground">Industry</div>
-                      <div className="flex items-center">
-                        <Building className="mr-2 h-4 w-4 text-muted-foreground" />
-                        <span>{client.industry || 'Not specified'}</span>
-                      </div>
-                    </div>
-                    
-                    {client.websiteUrl && (
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-muted-foreground">Website</div>
-                        <div className="flex items-center">
-                          <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
-                          <a 
-                            href={client.websiteUrl.startsWith('http') ? client.websiteUrl : `https://${client.websiteUrl}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
-                          >
-                            {client.websiteUrl}
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-muted-foreground">Service Start</div>
-                        <div className="flex items-center">
-                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                          <span>{formatDate(client.serviceStartDate)}</span>
-                        </div>
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-muted-foreground">Service End</div>
-                        <div className="flex items-center">
-                          <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                          <span>{formatDate(client.serviceEndDate)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="text-sm font-medium text-muted-foreground">Client Since</div>
-                      <div className="flex items-center">
-                        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                        <span>{formatDate(client.createdAt)}</span>
-                      </div>
-                    </div>
-                    
-                    {client.notes && (
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium text-muted-foreground">Notes</div>
-                        <p className="text-sm">{client.notes}</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-muted-foreground">Industry</div>
+                  <div className="flex items-center">
+                    <Building className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>{client.industry || 'Not specified'}</span>
+                  </div>
+                </div>
                 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Primary Contacts</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {contacts.length > 0 ? (
-                      <div className="space-y-4">
-                        {contacts.slice(0, 3).map((contact) => (
-                          <div key={contact.id} className="border-b pb-3 last:border-0 last:pb-0">
-                            <div className="flex items-center justify-between mb-1">
-                              <div className="font-medium">
-                                {contact.firstName} {contact.lastName}
-                                {contact.isPrimary && (
-                                  <Badge className="ml-2 bg-blue-100 text-blue-800">Primary</Badge>
-                                )}
-                              </div>
-                              {contact.role && <span className="text-xs text-muted-foreground">{contact.role}</span>}
-                            </div>
-                            <div className="text-sm">{contact.email}</div>
-                            {contact.phone && <div className="text-sm">{contact.phone}</div>}
+                {client.websiteUrl && (
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-muted-foreground">Website</div>
+                    <div className="flex items-center">
+                      <Globe className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <a 
+                        href={client.websiteUrl.startsWith('http') ? client.websiteUrl : `https://${client.websiteUrl}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {client.websiteUrl}
+                      </a>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-muted-foreground">Service Start</div>
+                    <div className="flex items-center">
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span>{formatDate(client.serviceStartDate)}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-muted-foreground">Service End</div>
+                    <div className="flex items-center">
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <span>{formatDate(client.serviceEndDate)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <div className="text-sm font-medium text-muted-foreground">Client Since</div>
+                  <div className="flex items-center">
+                    <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                    <span>{formatDate(client.createdAt)}</span>
+                  </div>
+                </div>
+                
+                {client.notes && (
+                  <div className="space-y-1">
+                    <div className="text-sm font-medium text-muted-foreground">Notes</div>
+                    <p className="text-sm">{client.notes}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Primary Contacts</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {contacts.length > 0 ? (
+                  <div className="space-y-4">
+                    {contacts.slice(0, 3).map((contact) => (
+                      <div key={contact.id} className="border-b pb-3 last:border-0 last:pb-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="font-medium">
+                            {contact.firstName} {contact.lastName}
+                            {contact.isPrimary && (
+                              <Badge className="ml-2 bg-blue-100 text-blue-800">Primary</Badge>
+                            )}
                           </div>
-                        ))}
-                        
-                        {contacts.length > 3 && (
-                          <div className="text-sm text-center">
-                            <Button variant="ghost" onClick={() => handleTabClick('contacts')}>
-                              View all ({contacts.length}) contacts
-                            </Button>
-                          </div>
-                        )}
+                          {contact.role && <span className="text-xs text-muted-foreground">{contact.role}</span>}
+                        </div>
+                        <div className="text-sm">{contact.email}</div>
+                        {contact.phone && <div className="text-sm">{contact.phone}</div>}
                       </div>
-                    ) : (
-                      <p className="text-muted-foreground">No contacts found for this client.</p>
+                    ))}
+                    
+                    {contacts.length > 3 && (
+                      <div className="text-sm text-center">
+                        <Button 
+                          variant="ghost" 
+                          onClick={() => navigate(`/admin/accounts/clients/${id}/contacts`)}
+                        >
+                          View all ({contacts.length}) contacts
+                        </Button>
+                      </div>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-          </Tabs>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No contacts found for this client.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       ) : (
         <div className="flex justify-center py-8">

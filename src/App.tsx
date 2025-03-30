@@ -86,7 +86,7 @@ const App = () => (
           <Route path="/admin/accounts/users" element={<DashboardRoute element={<UsersPage />} />} />
           <Route path="/admin/accounts/staff" element={<DashboardRoute element={<StaffManagementPage />} />} />
           
-          {/* Admin Client Detail Routes */}
+          {/* Admin Client Detail Routes - Updated with consistent paths */}
           <Route path="/admin/accounts/clients/:id/overview" element={<DashboardRoute element={<AdminClientProfilePage />} />} />
           <Route path="/admin/accounts/clients/:id/services" element={<DashboardRoute element={<AdminClientServicesPage />} />} />
           <Route path="/admin/accounts/clients/:id/invoices" element={<DashboardRoute element={<AdminClientInvoicesPage />} />} />

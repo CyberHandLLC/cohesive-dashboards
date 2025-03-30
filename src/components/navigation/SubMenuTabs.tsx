@@ -21,7 +21,15 @@ const SubMenuTabs = ({ items, basePath, className }: SubMenuTabsProps) => {
   const currentPath = location.pathname;
   
   // Find the active tab value based on the current path
-  const activeValue = items.find(item => currentPath === item.href)?.value || items[0]?.value;
+  const activeValue = items.find(item => {
+    // Check if the current path exactly matches the href
+    if (currentPath === item.href) return true;
+    
+    // Check if the current path ends with the value (for parameterized routes)
+    if (currentPath.endsWith(`/${item.value}`)) return true;
+    
+    return false;
+  })?.value || items[0]?.value;
   
   return (
     <Tabs value={activeValue} className={cn("w-full", className)}>

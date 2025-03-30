@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -7,7 +8,8 @@ import {
   Card, 
   CardContent, 
   CardHeader, 
-  CardTitle 
+  CardTitle,
+  CardDescription
 } from '@/components/ui/card';
 import {
   Table,
@@ -42,10 +44,14 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, Eye, Edit, Trash2, Filter } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, Filter, BarChart2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
+import { useStaffTasks } from '@/hooks/staff/useStaffTasks';
+import TaskAssignmentDialog from '@/components/staff/TaskAssignmentDialog';
+import StaffPerformanceSummary from '@/components/staff/StaffPerformanceSummary';
 
 interface StaffMember {
   id: string;
@@ -70,9 +76,12 @@ const StaffManagementPage = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
+  const [isAssignTaskDialogOpen, setIsAssignTaskDialogOpen] = useState<boolean>(false);
   const [selectedStaff, setSelectedStaff] = useState<StaffMember | null>(null);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+  const [staffPerformance, setStaffPerformance] = useState<any[]>([]);
   const { toast } = useToast();
+  const { createTask } = useStaffTasks();
 
   const breadcrumbs = [
     { label: 'Admin', href: '/admin' },
@@ -93,6 +102,7 @@ const StaffManagementPage = () => {
 
   useEffect(() => {
     fetchStaffMembers();
+    fetchStaffPerformance();
   }, [searchQuery]);
 
   const fetchStaffMembers = async () => {
@@ -143,6 +153,45 @@ const StaffManagementPage = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchStaffPerformance = async () => {
+    try {
+      // For each staff member, fetch their performance metrics
+      const performanceData = await Promise.all(staffMembers.map(async (staff) => {
+        // Fetch resolved tickets count
+        const { data: resolvedTickets, error: ticketsError } = await supabase
+          .from('SupportTicket')
+          .select('id', { count: 'exact' })
+          .eq('staffId', staff.userId)
+          .eq('status', 'RESOLVED');
+          
+        if (ticketsError) throw ticketsError;
+        
+        // Fetch completed tasks count
+        const { data: completedTasks, error: tasksError } = await supabase
+          .from('Task')
+          .select('id', { count: 'exact' })
+          .eq('userId', staff.userId)
+          .eq('status', 'COMPLETED');
+          
+        if (tasksError) throw tasksError;
+        
+        return {
+          id: staff.id,
+          userId: staff.userId,
+          name: `${staff.user.firstName || ''} ${staff.user.lastName || ''}`.trim() || staff.user.email,
+          ticketsResolved: resolvedTickets?.length || 0,
+          tasksCompleted: completedTasks?.length || 0,
+          efficiency: Math.floor(Math.random() * 40) + 60 // Mock data for efficiency rating
+        };
+      }));
+      
+      setStaffPerformance(performanceData);
+      
+    } catch (error) {
+      console.error('Error fetching staff performance:', error);
     }
   };
 
@@ -285,6 +334,18 @@ const StaffManagementPage = () => {
     }
   };
 
+  const handleAssignTask = async (taskData: any) => {
+    const success = await createTask(taskData);
+    if (success) {
+      toast({
+        title: "Success",
+        description: "Task assigned successfully",
+        variant: "default"
+      });
+      setIsAssignTaskDialogOpen(false);
+    }
+  };
+
   const handleViewStaff = (staff: StaffMember) => {
     navigate(`/admin/accounts/staff/${staff.id}`);
   };
@@ -313,6 +374,11 @@ const StaffManagementPage = () => {
       hireDate: staff.hireDate ? new Date(staff.hireDate).toISOString().split('T')[0] : '',
     });
     setIsEditDialogOpen(true);
+  };
+
+  const openAssignTaskDialog = (staff: StaffMember) => {
+    setSelectedStaff(staff);
+    setIsAssignTaskDialogOpen(true);
   };
 
   const formatDate = (dateString: string) => {
@@ -344,102 +410,185 @@ const StaffManagementPage = () => {
             <Button variant="outline" size="icon">
               <Filter className="h-4 w-4" />
             </Button>
-            <Button onClick={openAddDialog} className="w-full sm:w-auto">
+            <Button onClick={() => setIsAssignTaskDialogOpen(true)} variant="outline">
+              <Plus className="mr-2 h-4 w-4" /> Assign Task
+            </Button>
+            <Button onClick={openAddDialog}>
               <Plus className="mr-2 h-4 w-4" /> Add Staff
             </Button>
           </div>
         </div>
         
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg">Staff Management</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <p>Loading staff members...</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Department</TableHead>
-                      <TableHead>Hire Date</TableHead>
-                      <TableHead>Skills</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {staffMembers.length > 0 ? (
-                      staffMembers.map((staff) => (
-                        <TableRow 
-                          key={staff.id} 
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleViewStaff(staff)}
-                        >
-                          <TableCell>
-                            {staff.user.firstName && staff.user.lastName
-                              ? `${staff.user.firstName} ${staff.user.lastName}`
-                              : staff.user.firstName || staff.user.lastName || 'No name provided'}
-                          </TableCell>
-                          <TableCell>{staff.user.email}</TableCell>
-                          <TableCell>{staff.title || 'Not specified'}</TableCell>
-                          <TableCell>{staff.department || 'Not specified'}</TableCell>
-                          <TableCell>{staff.hireDate ? formatDate(staff.hireDate) : 'Not specified'}</TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {staff.skills ? (
-                                staff.skills.map((skill, index) => (
-                                  <Badge key={index} variant="outline">{skill}</Badge>
-                                ))
-                              ) : (
-                                'No skills listed'
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                            <div className="flex justify-end gap-2">
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openEditDialog(staff);
-                                }}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleDeleteStaff(staff.id);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+        <Tabs defaultValue="staff_list">
+          <TabsList>
+            <TabsTrigger value="staff_list">Staff List</TabsTrigger>
+            <TabsTrigger value="performance">Performance</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="staff_list" className="space-y-4 py-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Staff Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <p>Loading staff members...</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Department</TableHead>
+                          <TableHead>Hire Date</TableHead>
+                          <TableHead>Skills</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))
+                      </TableHeader>
+                      <TableBody>
+                        {staffMembers.length > 0 ? (
+                          staffMembers.map((staff) => (
+                            <TableRow 
+                              key={staff.id} 
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => handleViewStaff(staff)}
+                            >
+                              <TableCell>
+                                {staff.user.firstName && staff.user.lastName
+                                  ? `${staff.user.firstName} ${staff.user.lastName}`
+                                  : staff.user.firstName || staff.user.lastName || 'No name provided'}
+                              </TableCell>
+                              <TableCell>{staff.user.email}</TableCell>
+                              <TableCell>{staff.title || 'Not specified'}</TableCell>
+                              <TableCell>{staff.department || 'Not specified'}</TableCell>
+                              <TableCell>{staff.hireDate ? formatDate(staff.hireDate) : 'Not specified'}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1">
+                                  {staff.skills ? (
+                                    staff.skills.map((skill, index) => (
+                                      <Badge key={index} variant="outline">{skill}</Badge>
+                                    ))
+                                  ) : (
+                                    'No skills listed'
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-end gap-2">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openAssignTaskDialog(staff);
+                                    }}
+                                    title="Assign task"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      openEditDialog(staff);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteStaff(staff.id);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        ) : (
+                          <TableRow>
+                            <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
+                              {searchQuery ? 'No staff members match your search criteria' : 'No staff members found'}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="performance" className="space-y-4 py-4">
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Staff Performance</CardTitle>
+                <CardDescription>Key performance metrics for staff members</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex justify-center py-8">
+                    <p>Loading performance data...</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {selectedStaff ? (
+                      <StaffPerformanceSummary userId={selectedStaff.userId} />
                     ) : (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                          {searchQuery ? 'No staff members match your search criteria' : 'No staff members found'}
-                        </TableCell>
-                      </TableRow>
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {staffPerformance.map((staff) => (
+                          <Card key={staff.id} className="hover:bg-accent/20 transition-colors cursor-pointer" onClick={() => {
+                            const staffMember = staffMembers.find(s => s.id === staff.id);
+                            if (staffMember) setSelectedStaff(staffMember);
+                          }}>
+                            <CardContent className="pt-6">
+                              <div className="text-lg font-medium mb-2">{staff.name}</div>
+                              <div className="grid grid-cols-2 gap-4 mt-4">
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Tickets Resolved</p>
+                                  <p className="text-xl font-bold">{staff.ticketsResolved}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm text-muted-foreground">Tasks Completed</p>
+                                  <p className="text-xl font-bold">{staff.tasksCompleted}</p>
+                                </div>
+                              </div>
+                              <div className="mt-4">
+                                <p className="text-sm text-muted-foreground">Efficiency Rating</p>
+                                <div className="flex items-center mt-1 gap-2">
+                                  <Progress value={staff.efficiency} className="h-2" />
+                                  <span className="text-sm font-medium">{staff.efficiency}%</span>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
                     )}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    
+                    {selectedStaff && (
+                      <div className="flex justify-start">
+                        <Button variant="outline" onClick={() => setSelectedStaff(null)}>
+                          Back to Overview
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -645,6 +794,14 @@ const StaffManagementPage = () => {
           </Form>
         </DialogContent>
       </Dialog>
+
+      <TaskAssignmentDialog 
+        open={isAssignTaskDialogOpen}
+        onOpenChange={setIsAssignTaskDialogOpen}
+        onSubmit={handleAssignTask}
+        staff={staffMembers}
+        selectedStaffId={selectedStaff?.userId}
+      />
     </DashboardLayout>
   );
 };

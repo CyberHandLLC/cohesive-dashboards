@@ -67,11 +67,13 @@ interface Ticket {
 interface Task {
   id: string;
   title: string;
+  description: string | null;
   progress: number;
-  dueDate: string | null;
-  staffId: string;
   status: string;
+  dueDate: string | null;
+  userId: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 const StaffDetailsPage = () => {
@@ -154,15 +156,6 @@ const StaffDetailsPage = () => {
       // Fetch support tickets assigned to this staff member
       console.log('Fetching support tickets for staff ID:', staffId, 'and userId:', userId);
       
-      // Debug to see if there are tickets in the system
-      const { data: allTickets } = await supabase
-        .from('SupportTicket')
-        .select('staffId')
-        .limit(5);
-        
-      console.log('Sample tickets in system:', allTickets);
-      
-      // The issue is here - we're querying using staffId but it should be using userId
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('SupportTicket')
         .select(`
@@ -175,7 +168,7 @@ const StaffDetailsPage = () => {
             companyName
           )
         `)
-        .eq('staffId', userId); // Changed from staffId to userId
+        .eq('staffId', userId);
       
       if (ticketsError) {
         console.error('Error fetching support tickets:', ticketsError);
@@ -185,13 +178,13 @@ const StaffDetailsPage = () => {
       console.log('Support tickets data for userId', userId, ':', ticketsData);
       setSupportTickets(Array.isArray(ticketsData) ? ticketsData : []);
       
-      // Now fetch tasks the same way - using userId instead of staffId
+      // Fetch tasks assigned to this staff member from the real Tasks table
       try {
         console.log('Fetching tasks for userId:', userId);
         const { data: tasksData, error: tasksError } = await supabase
           .from('Task')
           .select('*')
-          .eq('staffId', userId);
+          .eq('userId', userId);
           
         if (tasksError) {
           console.error('Error fetching tasks:', tasksError);
@@ -199,26 +192,15 @@ const StaffDetailsPage = () => {
         }
         
         console.log('Tasks data for userId', userId, ':', tasksData);
-        
-        if (tasksData && tasksData.length > 0) {
-          setTasks(tasksData as Task[]);
-        } else {
-          // If no tasks found or table doesn't exist yet, use mock data
-          console.log('No tasks found, using mock data instead');
-          setTasks([
-            { id: '1', title: 'Project Alpha Completion', progress: 75, dueDate: '2023-07-15', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
-            { id: '2', title: 'Client Onboarding', progress: 50, dueDate: '2023-07-20', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
-            { id: '3', title: 'Bug Fixes', progress: 90, dueDate: '2023-07-10', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
-          ]);
-        }
+        setTasks(tasksData || []);
       } catch (error) {
-        console.error('Error in tasks functionality, using mock data instead:', error);
-        // Fallback to mock data if there's an error (like if the Task table doesn't exist yet)
-        setTasks([
-          { id: '1', title: 'Project Alpha Completion', progress: 75, dueDate: '2023-07-15', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
-          { id: '2', title: 'Client Onboarding', progress: 50, dueDate: '2023-07-20', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
-          { id: '3', title: 'Bug Fixes', progress: 90, dueDate: '2023-07-10', staffId: userId, status: 'IN_PROGRESS', createdAt: new Date().toISOString() },
-        ]);
+        console.error('Error fetching tasks:', error);
+        setTasks([]);
+        toast({
+          title: "Error loading tasks",
+          description: "Could not load tasks for this staff member",
+          variant: "destructive"
+        });
       }
       
     } catch (error: any) {
@@ -469,6 +451,9 @@ const StaffDetailsPage = () => {
                           </div>
                         </div>
                         <Progress value={task.progress} className="h-2" />
+                        {task.description && (
+                          <p className="text-xs text-muted-foreground mt-2">{task.description}</p>
+                        )}
                       </div>
                     ))}
                   </div>

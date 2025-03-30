@@ -777,6 +777,42 @@ export type Database = {
           },
         ]
       }
+      Task: {
+        Row: {
+          createdAt: string
+          description: string | null
+          dueDate: string | null
+          id: string
+          progress: number
+          status: string
+          title: string
+          updatedAt: string
+          userId: string
+        }
+        Insert: {
+          createdAt?: string
+          description?: string | null
+          dueDate?: string | null
+          id?: string
+          progress?: number
+          status?: string
+          title: string
+          updatedAt?: string
+          userId: string
+        }
+        Update: {
+          createdAt?: string
+          description?: string | null
+          dueDate?: string | null
+          id?: string
+          progress?: number
+          status?: string
+          title?: string
+          updatedAt?: string
+          userId?: string
+        }
+        Relationships: []
+      }
       Token: {
         Row: {
           createdAt: string

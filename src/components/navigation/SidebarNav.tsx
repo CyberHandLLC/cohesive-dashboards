@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -13,7 +14,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
 } from '@/components/ui/sidebar';
-import { Home, Users, FileText, BarChart2, PieChart, Settings, CreditCard, MessageSquare, Target } from 'lucide-react';
+import { Home, Users, FileText, BarChart2, PieChart, Settings, CreditCard, MessageSquare, Target, Calendar, CheckSquare } from 'lucide-react';
 
 interface SidebarNavProps {
   role?: 'admin' | 'staff' | 'client' | 'observer';
@@ -80,7 +81,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
     },
   ];
 
-  // Staff navigation items
+  // Staff navigation items - updated based on requirements
   const staffItems = [
     {
       title: 'Dashboard',
@@ -101,9 +102,22 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
     },
     {
       title: 'Tasks',
-      icon: Target,
+      icon: CheckSquare,
       path: '/staff/tasks',
-      active: location.pathname === '/staff/tasks',
+      active: location.pathname === '/staff/tasks' || 
+              location.pathname.startsWith('/staff/tasks'),
+    },
+    {
+      title: 'Calendar',
+      icon: Calendar,
+      path: '/staff/calendar',
+      active: location.pathname === '/staff/calendar',
+    },
+    {
+      title: 'Settings',
+      icon: Settings,
+      path: '/staff/settings',
+      active: location.pathname === '/staff/settings',
     },
   ];
 

@@ -25,10 +25,11 @@ const SubMenuTabs = ({ items, basePath, className }: SubMenuTabsProps) => {
     // Check if the current path exactly matches the href
     if (currentPath === item.href) return true;
     
-    // Check if the current path ends with the value (for parameterized routes)
-    if (currentPath.endsWith(`/${item.value}`)) return true;
+    // Check if the current path segment matches the item value
+    const pathSegments = currentPath.split('/');
+    const valueSegment = pathSegments[pathSegments.length - 1];
     
-    return false;
+    return valueSegment === item.value;
   })?.value || items[0]?.value;
   
   return (

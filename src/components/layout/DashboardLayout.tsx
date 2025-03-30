@@ -12,7 +12,7 @@ interface DashboardLayoutProps {
   subMenuItems?: SubMenuItem[];
   subMenuBasePath?: string;
   role?: 'admin' | 'staff' | 'client' | 'observer';
-  title?: string;  // Added title prop
+  title?: string;
 }
 
 const DashboardLayout = ({
@@ -21,8 +21,10 @@ const DashboardLayout = ({
   subMenuItems,
   subMenuBasePath = '',
   role = 'admin',
-  title,  // Add title to props
+  title,
 }: DashboardLayoutProps) => {
+  const location = useLocation();
+  
   return (
     <div className="flex h-screen w-full flex-col">
       <DashboardHeader />
@@ -38,7 +40,6 @@ const DashboardLayout = ({
               </div>
             )}
             
-            {/* Show title if provided */}
             {title && (
               <div className="mb-6">
                 <h1 className="text-2xl font-semibold">{title}</h1>
@@ -49,7 +50,7 @@ const DashboardLayout = ({
               <div className="mb-6">
                 <SubMenuTabs 
                   items={subMenuItems} 
-                  basePath={subMenuBasePath} 
+                  basePath={subMenuBasePath}
                 />
               </div>
             )}

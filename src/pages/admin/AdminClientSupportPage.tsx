@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -42,7 +41,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from "@/integrations/supabase/client";
 import { PlusCircle, Search, Edit, Trash2, Users } from 'lucide-react';
 import { formatDate } from '@/lib/formatters';
-import SubMenuTabs from '@/components/navigation/SubMenuTabs';
 
 type TicketPriority = "LOW" | "MEDIUM" | "HIGH";
 type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED";
@@ -122,18 +120,15 @@ const AdminClientSupportPage = () => {
   });
 
   useEffect(() => {
-    // Check if we're on the collective view page
     const isCollectiveView = location.pathname === '/admin/accounts/clients/support';
     setIsAllTicketsView(isCollectiveView);
   }, [location.pathname]);
   
-  // Fetch tickets and staff members
   const fetchData = async () => {
     setIsLoading(true);
     try {
       console.log("Fetching tickets. Client ID:", clientId, "All tickets view:", isAllTicketsView);
       
-      // Fetch tickets - if clientId is provided, filter by it, otherwise fetch all
       let ticketQuery = supabase
         .from('SupportTicket')
         .select(`
@@ -155,7 +150,6 @@ const AdminClientSupportPage = () => {
       
       console.log("Tickets fetched:", ticketData);
       
-      // Fetch staff members for assignment
       const { data: staffData, error: staffError } = await supabase
         .from('User')
         .select(`
@@ -173,7 +167,6 @@ const AdminClientSupportPage = () => {
       
       console.log("Staff fetched:", staffData);
 
-      // Fetch clients if in all tickets view
       if (isAllTicketsView) {
         const { data: clientsData, error: clientsError } = await supabase
           .from('Client')
@@ -279,7 +272,6 @@ const AdminClientSupportPage = () => {
       }
       
       if (isEditMode && currentTicket) {
-        // Update existing ticket
         const { error } = await supabase
           .from('SupportTicket')
           .update({
@@ -301,7 +293,6 @@ const AdminClientSupportPage = () => {
           description: "Ticket updated successfully",
         });
       } else {
-        // Create new ticket
         const { error } = await supabase
           .from('SupportTicket')
           .insert([
@@ -389,7 +380,6 @@ const AdminClientSupportPage = () => {
     }
   };
 
-  // Filter tickets
   const filteredTickets = tickets.filter((ticket) => {
     const matchesSearch = 
       ticket.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -401,7 +391,6 @@ const AdminClientSupportPage = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // For priority badge styling
   const getPriorityBadgeColor = (priority: TicketPriority) => {
     switch (priority) {
       case 'LOW': return 'bg-green-100 text-green-800';
@@ -411,7 +400,6 @@ const AdminClientSupportPage = () => {
     }
   };
 
-  // For status badge styling
   const getStatusBadgeColor = (status: TicketStatus) => {
     switch (status) {
       case 'OPEN': return 'bg-blue-100 text-blue-800';
@@ -422,7 +410,6 @@ const AdminClientSupportPage = () => {
     }
   };
 
-  // Create submenu tabs based on whether we're in a specific client view
   const getSubMenuItems = () => {
     if (clientId) {
       return [
@@ -436,14 +423,13 @@ const AdminClientSupportPage = () => {
     return undefined;
   };
 
-  // Set up breadcrumbs for navigation
   const getBreadcrumbs = () => {
     if (clientId) {
       return [
         { label: 'Admin', href: '/admin' },
         { label: 'Accounts', href: '/admin/accounts' },
         { label: 'Clients', href: '/admin/accounts/clients' },
-        { label: clientId ? clientId : 'Client', href: `/admin/accounts/clients/${clientId}/overview` },
+        { label: 'Client Details', href: `/admin/accounts/clients/${clientId}/overview` },
         { label: 'Support' }
       ];
     } else {
@@ -460,6 +446,7 @@ const AdminClientSupportPage = () => {
     <DashboardLayout
       breadcrumbs={getBreadcrumbs()}
       subMenuItems={getSubMenuItems()}
+      title={clientId ? "Client Support Tickets" : "All Support Tickets"}
       role="admin"
     >
       <div className="space-y-6">

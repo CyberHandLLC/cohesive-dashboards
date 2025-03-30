@@ -50,6 +50,11 @@ const PackagesPage = () => {
     loadPackageServices(packageId);
   };
 
+  // Handle package row click for navigation
+  const handlePackageRowClick = (packageId: string) => {
+    navigate(`/admin/portfolio/packages/${packageId}`);
+  };
+
   // Handle client usage click
   const handleClientUsageClick = (packageId: string) => {
     navigate(`/admin/accounts/clients?packageId=${packageId}`);
@@ -95,6 +100,7 @@ const PackagesPage = () => {
                 onSearchChange={setSearchTerm}
                 onClientUsageClick={handleClientUsageClick}
                 onPackageExpand={handlePackageExpand}
+                onPackageRowClick={handlePackageRowClick}
               />
             )}
           </CardContent>
@@ -109,7 +115,7 @@ const PackagesPage = () => {
         title="Add Package"
       />
 
-      {/* Edit Package Dialog */}
+      {/* Edit Package Dialog - Only kept for quick edits */}
       <PackageFormDialog
         open={!!editingPackage}
         onOpenChange={(open) => !open && setEditingPackage(null)}

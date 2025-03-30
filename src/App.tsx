@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -34,6 +35,7 @@ import AdminClientSupportPage from "./pages/admin/AdminClientSupportPage";
 import CategoriesPage from "./pages/portfolio/CategoriesPage";
 import ServicesPage from "./pages/portfolio/ServicesPage";
 import PackagesPage from "./pages/portfolio/PackagesPage";
+import PackageDetailsPage from "./pages/portfolio/PackageDetailsPage";
 
 // Admin Document Pages
 import InvoicesPage from "./pages/documents/InvoicesPage";
@@ -105,6 +107,7 @@ const App = () => (
           <Route path="/admin/portfolio/categories" element={<DashboardRoute element={<CategoriesPage />} />} />
           <Route path="/admin/portfolio/services" element={<DashboardRoute element={<ServicesPage />} />} />
           <Route path="/admin/portfolio/packages" element={<DashboardRoute element={<PackagesPage />} />} />
+          <Route path="/admin/portfolio/packages/:id" element={<DashboardRoute element={<PackageDetailsPage />} />} />
           
           {/* Admin Document Routes */}
           <Route path="/admin/documents/invoices" element={<DashboardRoute element={<InvoicesPage />} />} />

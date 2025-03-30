@@ -4,7 +4,7 @@ import { Package } from '@/hooks/usePackages';
 import { Service } from '@/hooks/useServices';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, ChevronDown, ChevronUp, Users, Search, ArrowUpDown } from 'lucide-react';
+import { Edit, Trash2, ChevronDown, ChevronUp, Users, Search, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/formatters';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ interface PackagesTableProps {
   onSearchChange?: (value: string) => void;
   onClientUsageClick?: (packageId: string) => void;
   onPackageExpand?: (packageId: string) => void;
+  onPackageRowClick?: (packageId: string) => void;
 }
 
 export function PackagesTable({ 
@@ -33,7 +34,8 @@ export function PackagesTable({
   searchQuery = '',
   onSearchChange,
   onClientUsageClick,
-  onPackageExpand
+  onPackageExpand,
+  onPackageRowClick
 }: PackagesTableProps) {
   const [expandedPackages, setExpandedPackages] = useState<Record<string, boolean>>({});
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'}>({
@@ -41,7 +43,11 @@ export function PackagesTable({
     direction: 'asc'
   });
 
-  const toggleExpanded = (packageId: string) => {
+  const toggleExpanded = (packageId: string, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
     const newExpandedState = !expandedPackages[packageId];
     
     setExpandedPackages(prev => ({
@@ -159,15 +165,25 @@ export function PackagesTable({
           ) : (
             sortedPackages.map((pkg) => (
               <React.Fragment key={pkg.id}>
-                <TableRow className="cursor-pointer" onClick={() => toggleExpanded(pkg.id)}>
+                <TableRow className="cursor-pointer" onClick={() => onPackageRowClick && onPackageRowClick(pkg.id)}>
                   <TableCell className="font-medium">
                     <div className="flex items-center">
-                      {expandedPackages[pkg.id] ? (
-                        <ChevronUp className="mr-2 h-4 w-4" />
-                      ) : (
-                        <ChevronDown className="mr-2 h-4 w-4" />
-                      )}
-                      {pkg.name}
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="p-0 mr-2 h-4 w-4"
+                        onClick={(e) => toggleExpanded(pkg.id, e)}
+                      >
+                        {expandedPackages[pkg.id] ? (
+                          <ChevronUp className="h-4 w-4" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <span className="hover:underline flex items-center gap-1">
+                        {pkg.name}
+                        <ExternalLink className="h-3 w-3 opacity-50" />
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell>{formatCurrency(pkg.price)}</TableCell>
@@ -264,6 +280,20 @@ export function PackagesTable({
                                 </ul>
                               </div>
                             )}
+                            
+                            <div className="pt-2 flex justify-end">
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onPackageRowClick) onPackageRowClick(pkg.id);
+                                }}
+                              >
+                                View & Edit Details
+                                <ExternalLink className="ml-1 h-3 w-3" />
+                              </Button>
+                            </div>
                           </div>
                         </CollapsibleContent>
                       </Collapsible>

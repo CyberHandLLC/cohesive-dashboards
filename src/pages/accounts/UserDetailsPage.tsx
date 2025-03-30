@@ -2,195 +2,158 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { supabase } from '@/integrations/supabase/client';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle,
+  CardDescription,
+  CardFooter
+} from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  ArrowLeft,
+  User,
+  Mail,
+  Shield,
+  Calendar,
+  Building,
+  ClipboardCheck,
+  Trash2,
+  Edit,
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { useUsers, User as UserType, UserRole } from '@/hooks/users/useUsers';
 import UserRoleBadge from '@/components/users/UserRoleBadge';
 import UserStatusBadge from '@/components/users/UserStatusBadge';
-import { ArrowLeft, Edit, UserCog } from 'lucide-react';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import UserEditDialog from '@/components/users/UserEditDialog';
-
-interface User {
-  id: string;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  role: string;
-  status: string;
-  emailVerified: boolean;
-  clientId?: string;
-  securityVersion?: number;
-  client?: {
-    companyName: string;
-  };
-  createdAt: string;
-  updatedAt?: string;
-}
+import { supabase } from '@/integrations/supabase/client';
 
 const UserDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
-  const [user, setUser] = useState<User | null>(null);
+  const navigate = useNavigate();
+  const [user, setUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isLoadingAuditLogs, setIsLoadingAuditLogs] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
-  
+  const { getUserById, editUser, deleteUser } = useUsers();
+
   const breadcrumbs = [
     { label: 'Admin', href: '/admin' },
     { label: 'Accounts', href: '/admin/accounts' },
     { label: 'Users', href: '/admin/accounts/users' },
-    { label: 'User Details' }
+    { label: user?.email || 'User Details' }
   ];
-  
+
   useEffect(() => {
-    const fetchUser = async () => {
-      if (!id) return;
+    if (id) {
+      fetchUserDetails();
+      fetchAuditLogs();
+    }
+  }, [id]);
+
+  const fetchUserDetails = async () => {
+    if (!id) return;
+    
+    setIsLoading(true);
+    const userData = await getUserById(id);
+    setUser(userData);
+    setIsLoading(false);
+  };
+
+  const fetchAuditLogs = async () => {
+    if (!id) return;
+    
+    setIsLoadingAuditLogs(true);
+    try {
+      const { data, error } = await supabase
+        .from('AuditLog')
+        .select('*')
+        .eq('userId', id)
+        .order('timestamp', { ascending: false })
+        .limit(20);
+        
+      if (error) {
+        throw error;
+      }
       
-      try {
-        const { data, error } = await supabase
-          .from('User')
-          .select(`
-            id, 
-            email, 
-            firstName, 
-            lastName, 
-            role, 
-            status, 
-            emailVerified,
-            clientId,
-            securityVersion,
-            createdAt,
-            updatedAt,
-            client:clientId (
-              companyName
-            )
-          `)
-          .eq('id', id)
-          .single();
-          
-        if (error) {
-          throw error;
-        }
-        
-        setUser(data);
-      } catch (error: any) {
-        console.error('Error fetching user:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to load user details',
-          variant: 'destructive'
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchUser();
-  }, [id, toast]);
-  
-  const handleEditUser = (userData: any) => {
-    if (!user) return;
-    
-    const updateUser = async () => {
-      try {
-        // Update user data
-        const { error } = await supabase
-          .from('User')
-          .update({
-            email: userData.email,
-            firstName: userData.firstName,
-            lastName: userData.lastName,
-            role: userData.role,
-            status: userData.status,
-            emailVerified: userData.emailVerified,
-            clientId: userData.clientId === "none" ? null : userData.clientId
-          })
-          .eq('id', user.id);
-          
-        if (error) throw error;
-        
-        // If password was updated
-        if (userData.password) {
-          const { error: passwordError } = await supabase.auth.admin.updateUserById(
-            user.id,
-            { password: userData.password }
-          );
-          
-          if (passwordError) throw passwordError;
-          
-          // Increment security version
-          await supabase.rpc('increment_security_version', { user_id: user.id });
-        }
-        
-        // Refresh user data
-        const { data: refreshedData, error: refreshError } = await supabase
-          .from('User')
-          .select(`
-            id, 
-            email, 
-            firstName, 
-            lastName, 
-            role, 
-            status, 
-            emailVerified,
-            clientId,
-            securityVersion,
-            createdAt,
-            updatedAt,
-            client:clientId (
-              companyName
-            )
-          `)
-          .eq('id', user.id)
-          .single();
-          
-        if (refreshError) throw refreshError;
-        
-        setUser(refreshedData);
-        setIsEditDialogOpen(false);
-        
-        toast({
-          title: 'Success',
-          description: 'User updated successfully',
-          variant: 'default'
-        });
-      } catch (error: any) {
-        console.error('Error updating user:', error);
-        toast({
-          title: 'Error',
-          description: 'Failed to update user: ' + error.message,
-          variant: 'destructive'
-        });
-      }
-    };
-    
-    updateUser();
+      setAuditLogs(data || []);
+    } catch (error: any) {
+      console.error('Error fetching audit logs:', error);
+      toast({
+        title: "Error loading audit logs",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingAuditLogs(false);
+    }
   };
-  
-  const formatDate = (dateString?: string) => {
+
+  const handleEdit = async (userData: any) => {
+    if (!id || !user) return;
+    
+    const success = await editUser(id, userData);
+    if (success) {
+      setIsEditDialogOpen(false);
+      fetchUserDetails();
+      toast({
+        title: "User updated",
+        description: "User details have been updated successfully",
+      });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!id) return;
+    
+    const success = await deleteUser(id);
+    if (success) {
+      toast({
+        title: "User deleted",
+        description: "User has been permanently removed",
+      });
+      navigate('/admin/accounts/users');
+    }
+  };
+
+  const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
+    try {
+      return new Date(dateString).toLocaleString();
+    } catch (error) {
+      return 'Invalid date';
+    }
   };
-  
-  const getUserInitials = () => {
-    if (!user) return '??';
+
+  const formatLogAction = (log: any) => {
+    const action = log.action || 'UNKNOWN';
+    const resource = log.resource || 'UNKNOWN';
+    const status = log.status || 'UNKNOWN';
     
-    const firstInitial = user.firstName ? user.firstName.charAt(0).toUpperCase() : '';
-    const lastInitial = user.lastName ? user.lastName.charAt(0).toUpperCase() : '';
+    let message = `${action} on ${resource}`;
+    if (status === 'FAILED') {
+      message += ' (Failed)';
+    }
     
-    return firstInitial + lastInitial || user.email.charAt(0).toUpperCase();
+    return message;
   };
 
   if (isLoading) {
     return (
-      <DashboardLayout 
-        breadcrumbs={breadcrumbs}
-        role="admin"
-        title="User Details"
-      >
+      <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
         <div className="flex justify-center py-8">
           <p>Loading user details...</p>
         </div>
@@ -200,157 +163,260 @@ const UserDetailsPage = () => {
 
   if (!user) {
     return (
-      <DashboardLayout 
-        breadcrumbs={breadcrumbs}
-        role="admin"
-        title="User Details"
-      >
-        <div className="flex flex-col items-center py-8">
-          <p className="text-center text-muted-foreground mb-4">User not found</p>
-          <Button onClick={() => navigate('/admin/accounts/users')} variant="default">
-            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
-          </Button>
-        </div>
+      <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
+        <Card>
+          <CardHeader>
+            <CardTitle>User not found</CardTitle>
+            <CardDescription>The user you are looking for does not exist or has been deleted.</CardDescription>
+          </CardHeader>
+          <CardFooter>
+            <Button variant="outline" onClick={() => navigate('/admin/accounts/users')}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
+            </Button>
+          </CardFooter>
+        </Card>
       </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout 
-      breadcrumbs={breadcrumbs}
-      role="admin"
-      title="User Details"
-    >
+    <DashboardLayout breadcrumbs={breadcrumbs} role="admin">
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <Button 
-            onClick={() => navigate('/admin/accounts/users')} 
-            variant="outline"
-          >
+          <Button variant="outline" onClick={() => navigate('/admin/accounts/users')}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Users
           </Button>
-          
-          <div className="flex gap-2">
-            <Button 
-              onClick={() => setIsEditDialogOpen(true)}
-              variant="default"
-            >
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
               <Edit className="mr-2 h-4 w-4" /> Edit User
+            </Button>
+            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Delete User
             </Button>
           </div>
         </div>
         
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-4">
-              <Avatar className="h-12 w-12 border">
-                <AvatarFallback>{getUserInitials()}</AvatarFallback>
-              </Avatar>
+            <div className="flex justify-between items-start">
               <div>
-                {user.firstName && user.lastName ? 
-                  `${user.firstName} ${user.lastName}` : 
-                  user.email}
+                <CardTitle className="text-2xl">
+                  {user.firstName && user.lastName 
+                    ? `${user.firstName} ${user.lastName}`
+                    : user.email}
+                </CardTitle>
+                <CardDescription>{user.email}</CardDescription>
               </div>
-            </CardTitle>
+              <div className="flex space-x-2">
+                <UserRoleBadge role={user.role} />
+                <UserStatusBadge status={user.status} />
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Email</h3>
-                  <p>{user.email}</p>
+                <div className="flex items-center">
+                  <User className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="font-medium">Name:</span>
+                  <span className="ml-2">
+                    {user.firstName && user.lastName 
+                      ? `${user.firstName} ${user.lastName}`
+                      : user.firstName || user.lastName || 'Not provided'}
+                  </span>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Role</h3>
-                  <div className="mt-1"><UserRoleBadge role={user.role} /></div>
+                <div className="flex items-center">
+                  <Mail className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="font-medium">Email:</span>
+                  <span className="ml-2">{user.email}</span>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
-                  <div className="mt-1"><UserStatusBadge status={user.status} /></div>
+                <div className="flex items-center">
+                  <Shield className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="font-medium">Role:</span>
+                  <span className="ml-2"><UserRoleBadge role={user.role} /></span>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Email Verified</h3>
-                  <p>{user.emailVerified ? 'Yes' : 'No'}</p>
+                <div className="flex items-center">
+                  <ClipboardCheck className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="font-medium">Status:</span>
+                  <span className="ml-2"><UserStatusBadge status={user.status} /></span>
                 </div>
               </div>
               
               <div className="space-y-4">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Associated Client</h3>
-                  <p>{user.client?.companyName || 'None'}</p>
+                <div className="flex items-center">
+                  <ClipboardCheck className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="font-medium">Email Verified:</span>
+                  <span className="ml-2">
+                    <span className={`inline-block px-2 py-1 text-xs rounded-full ${
+                      user.emailVerified 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {user.emailVerified ? 'Yes' : 'No'}
+                    </span>
+                  </span>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Security Version</h3>
-                  <p>{user.securityVersion || '1'}</p>
+                <div className="flex items-center">
+                  <Building className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="font-medium">Client:</span>
+                  <span className="ml-2">
+                    {user.client?.companyName || 
+                      (user.role === 'CLIENT' && !user.clientId ? 
+                        <span className="text-amber-600">Not assigned</span> : 
+                        'N/A')}
+                  </span>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Created At</h3>
-                  <p>{formatDate(user.createdAt)}</p>
+                <div className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="font-medium">Created:</span>
+                  <span className="ml-2">{formatDate(user.createdAt)}</span>
                 </div>
-                
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
-                  <p>{formatDate(user.updatedAt)}</p>
+                <div className="flex items-center">
+                  <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="font-medium">Updated:</span>
+                  <span className="ml-2">{formatDate(user.updatedAt)}</span>
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
         
-        {user.role === 'STAFF' && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Staff Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                View staff details in the Staff Management section.
-              </p>
-              <Button 
-                className="mt-4"
-                variant="outline"
-                onClick={() => navigate(`/admin/accounts/staff`)}
-              >
-                <UserCog className="mr-2 h-4 w-4" /> View Staff Profile
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-        
-        {user.role === 'CLIENT' && user.clientId && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Client Information</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                View client details in the Clients Management section.
-              </p>
-              <Button 
-                className="mt-4"
-                variant="outline"
-                onClick={() => navigate(`/admin/accounts/clients/${user.clientId}/overview`)}
-              >
-                View Client Profile
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        <Tabs defaultValue="activity">
+          <TabsList>
+            <TabsTrigger value="activity">Activity Log</TabsTrigger>
+            <TabsTrigger value="security">Security</TabsTrigger>
+            {user.role === 'STAFF' && (
+              <TabsTrigger value="staff">Staff Details</TabsTrigger>
+            )}
+            {user.role === 'CLIENT' && (
+              <TabsTrigger value="client">Client Details</TabsTrigger>
+            )}
+          </TabsList>
+          
+          <TabsContent value="activity" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Activity Log</CardTitle>
+                <CardDescription>Recent actions performed by or on this user account</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {isLoadingAuditLogs ? (
+                  <div className="text-center py-4">Loading activity logs...</div>
+                ) : auditLogs.length > 0 ? (
+                  <div className="space-y-4">
+                    {auditLogs.map((log) => (
+                      <div key={log.id} className="border-b pb-3">
+                        <div className="flex justify-between">
+                          <div className="font-medium">{formatLogAction(log)}</div>
+                          <div className="text-muted-foreground text-sm">
+                            {formatDate(log.timestamp)}
+                          </div>
+                        </div>
+                        {log.details && (
+                          <div className="text-sm mt-1 text-muted-foreground">
+                            {JSON.stringify(log.details)}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No activity logs found
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="security" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Security Settings</CardTitle>
+                <CardDescription>Manage account security and authentication</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div>
+                    <Button variant="outline">Reset Password</Button>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Send a password reset email to this user
+                    </p>
+                  </div>
+                  <div className="border-t pt-4">
+                    <Button variant={user.emailVerified ? "outline" : "default"}>
+                      {user.emailVerified ? "Unverify Email" : "Verify Email"}
+                    </Button>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      {user.emailVerified 
+                        ? "Mark this user's email as unverified" 
+                        : "Mark this user's email as verified"}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {user.role === 'STAFF' && (
+            <TabsContent value="staff" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Staff Details</CardTitle>
+                  <CardDescription>Staff-specific information and assignments</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    Staff details will be displayed here
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+          
+          {user.role === 'CLIENT' && (
+            <TabsContent value="client" className="mt-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Client Details</CardTitle>
+                  <CardDescription>Client-specific information and services</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    Client details will be displayed here
+                  </p>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+        </Tabs>
       </div>
-      
-      {isEditDialogOpen && user && (
-        <UserEditDialog
-          open={isEditDialogOpen}
-          onOpenChange={setIsEditDialogOpen}
-          onSubmit={handleEditUser}
-          user={user}
-        />
-      )}
+
+      <UserEditDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSubmit={handleEdit}
+        user={user}
+      />
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Deletion</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone and will remove all associated data.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete}>
+              Delete User
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 };

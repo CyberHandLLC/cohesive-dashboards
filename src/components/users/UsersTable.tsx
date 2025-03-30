@@ -11,14 +11,15 @@ import {
 import UserRoleBadge from './UserRoleBadge';
 import UserStatusBadge from './UserStatusBadge';
 import UserTableActions from './UserTableActions';
+import { UserRole, UserStatus } from '@/hooks/users/useUsers';
 
 interface User {
   id: string;
   email: string;
   firstName?: string;
   lastName?: string;
-  role: string;
-  status: string;
+  role: UserRole;
+  status: UserStatus;
   emailVerified?: boolean;
   clientId?: string;
   client?: {
@@ -35,7 +36,7 @@ interface UsersTableProps {
   onView: (userId: string) => void;
   onEdit: (userId: string) => void;
   onDelete: (userId: string) => void;
-  onChangeRole?: (userId: string, newRole: string) => void;
+  onChangeRole?: (userId: string, newRole: UserRole) => void;
 }
 
 const UsersTable: React.FC<UsersTableProps> = ({

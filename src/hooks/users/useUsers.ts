@@ -1,24 +1,21 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-// Define TypeScript types for the user roles and statuses
-type UserRole = 'ADMIN' | 'STAFF' | 'CLIENT' | 'OBSERVER';
-type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-type AuditAction = 'UPDATE' | 'DELETE';
-type AuditResource = 'USER';
+// Define user role and status types to match the database
+export type UserRole = 'ADMIN' | 'STAFF' | 'CLIENT' | 'OBSERVER';
+export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
-interface User {
+export interface User {
   id: string;
   email: string;
   firstName?: string;
   lastName?: string;
   role: UserRole;
   status: UserStatus;
-  emailVerified: boolean;
+  emailVerified?: boolean;
   clientId?: string;
-  securityVersion?: number;
   client?: {
     companyName: string;
   };
@@ -26,310 +23,320 @@ interface User {
   updatedAt?: string;
 }
 
-interface UserFormData {
+export interface UserFormData {
   email: string;
-  password: string;
-  role: UserRole;
-  status: UserStatus;
-  emailVerified: boolean;
   firstName?: string;
   lastName?: string;
-  clientId?: string | null; // Updated to allow null explicitly
+  role: UserRole;
+  status: UserStatus;
+  emailVerified?: boolean;
+  clientId?: string;
+  password?: string;
 }
 
-export const useUsers = (searchQuery: string = '') => {
+export const useUsers = (searchQuery = '') => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
-  const fetchUsers = useCallback(async () => {
+  const fetchUsers = async () => {
     setIsLoading(true);
-    
     try {
       let query = supabase
         .from('User')
         .select(`
           id, 
           email, 
-          firstName, 
-          lastName, 
-          role, 
-          status, 
+          firstName,
+          lastName,
+          role,
+          status,
           emailVerified,
           clientId,
-          securityVersion,
-          createdAt,
-          updatedAt,
           client:clientId (
             companyName
-          )
-        `)
-        .order('createdAt', { ascending: false });
+          ),
+          createdAt,
+          updatedAt
+        `);
       
       if (searchQuery) {
-        query = query.or(`email.ilike.%${searchQuery}%,firstName.ilike.%${searchQuery}%,lastName.ilike.%${searchQuery}%,role.ilike.%${searchQuery}%,status.ilike.%${searchQuery}%`);
+        query = query.or(
+          `email.ilike.%${searchQuery}%,firstName.ilike.%${searchQuery}%,lastName.ilike.%${searchQuery}%,role.ilike.%${searchQuery}%`
+        );
       }
       
-      const { data, error } = await query;
+      const { data, error } = await query.order('createdAt', { ascending: false });
       
       if (error) {
-        console.error('Error fetching users:', error);
-        toast({
-          title: "Error fetching users",
-          description: error.message,
-          variant: "destructive"
-        });
-      } else {
-        setUsers(data || []);
+        throw error;
       }
+      
+      setUsers(data || []);
     } catch (error: any) {
-      console.error('Error in users fetch operation:', error);
+      console.error('Error fetching users:', error);
       toast({
-        title: "Error",
-        description: "Failed to load users",
+        title: "Error loading users",
+        description: error.message,
         variant: "destructive"
       });
     } finally {
       setIsLoading(false);
     }
-  }, [searchQuery, toast]);
-
-  const deleteUser = async (userId: string) => {
-    try {
-      // First check if this is a client user with related data
-      const { data: userData, error: userError } = await supabase
-        .from('User')
-        .select('role, clientId')
-        .eq('id', userId)
-        .single();
-      
-      if (userError) throw userError;
-      
-      // If user is a client with assigned client ID, we may want to warn or handle differently
-      if (userData.role === 'CLIENT' && userData.clientId) {
-        // Option: Create an audit log entry
-        await supabase
-          .from('AuditLog')
-          .insert({
-            action: 'DELETE' as AuditAction,
-            resource: 'USER' as AuditResource,
-            details: { clientId: userData.clientId },
-            userId: userId
-          });
-      }
-      
-      // Delete the user
-      const { error } = await supabase
-        .from('User')
-        .delete()
-        .eq('id', userId);
-        
-      if (error) {
-        console.error('Error deleting user:', error);
-        toast({
-          title: "Error",
-          description: "Failed to delete user: " + error.message,
-          variant: "destructive"
-        });
-        return false;
-      } else {
-        toast({
-          title: "Success",
-          description: "User deleted successfully",
-          variant: "default"
-        });
-        await fetchUsers(); // Refresh the user list
-        return true;
-      }
-    } catch (error: any) {
-      console.error('Error in delete operation:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred: " + error.message,
-        variant: "destructive"
-      });
-      return false;
-    }
   };
 
-  const addUser = async (userData: UserFormData) => {
+  const addUser = async (userData: UserFormData): Promise<boolean> => {
     try {
-      // First, create auth record
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: userData.email,
-        password: userData.password,
-        email_confirm: userData.emailVerified,
-        user_metadata: {
-          firstName: userData.firstName,
-          lastName: userData.lastName
-        }
-      });
+      // First create the auth user if password is provided
+      if (userData.password) {
+        const { error: authError } = await supabase.auth.admin.createUser({
+          email: userData.email,
+          password: userData.password,
+          email_confirm: userData.emailVerified || false,
+          user_metadata: {
+            firstName: userData.firstName,
+            lastName: userData.lastName
+          }
+        });
+        
+        if (authError) throw authError;
+      }
       
-      if (authError) throw authError;
-      
-      // The user record in the `User` table will be created automatically by the `handle_new_user` trigger
-      // We just need to update it with additional data
-      const { error: updateError } = await supabase
+      // Then update the user record with additional data
+      const { error } = await supabase
         .from('User')
         .update({
           role: userData.role,
           status: userData.status,
-          emailVerified: userData.emailVerified,
-          clientId: userData.clientId === "unassigned" || userData.clientId === "none" ? null : userData.clientId
+          emailVerified: userData.emailVerified || false,
+          clientId: userData.clientId || null
         })
-        .eq('id', authData.user.id);
+        .eq('email', userData.email);
       
-      if (updateError) throw updateError;
+      if (error) throw error;
       
-      // If role is STAFF, create a staff record
-      if (userData.role === 'STAFF') {
-        const { error: staffError } = await supabase
-          .from('Staff')
-          .insert({
-            userId: authData.user.id,
-            title: 'Staff Member',
-            department: 'Default'
-          });
-        
-        if (staffError) {
-          console.error('Error creating staff record:', staffError);
-          // Continue anyway, as the user has been created
-        }
-      }
-      
-      await fetchUsers(); // Refresh user list
+      await fetchUsers();
       return true;
     } catch (error: any) {
-      console.error('Error creating user:', error);
+      console.error('Error adding user:', error);
       toast({
-        title: "Error",
-        description: "Failed to create user: " + error.message,
+        title: "Failed to create user",
+        description: error.message,
         variant: "destructive"
       });
       return false;
     }
   };
 
-  const editUser = async (userId: string, userData: Partial<UserFormData>) => {
+  const editUser = async (userId: string, userData: Partial<UserFormData>): Promise<boolean> => {
     try {
-      // Update the user record
-      const updateData: any = {
-        email: userData.email,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        role: userData.role,
-        status: userData.status,
-        emailVerified: userData.emailVerified
-      };
-      
-      // Handle clientId separately to account for special values
-      if (userData.clientId !== undefined) {
-        updateData.clientId = userData.clientId === "unassigned" || userData.clientId === "none" ? null : userData.clientId;
-      }
-      
       const { error } = await supabase
         .from('User')
-        .update(updateData)
+        .update({
+          email: userData.email,
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          role: userData.role,
+          status: userData.status,
+          emailVerified: userData.emailVerified,
+          clientId: userData.clientId
+        })
         .eq('id', userId);
       
       if (error) throw error;
       
-      // If updating password, we would use Auth API
-      if (userData.password) {
-        const { error: passwordError } = await supabase.auth.admin.updateUserById(
+      // Update auth user email if changed
+      if (userData.email) {
+        const { error: authError } = await supabase.auth.admin.updateUserById(
           userId,
-          { password: userData.password }
+          { email: userData.email }
         );
         
-        if (passwordError) throw passwordError;
-        
-        // Increment security version to invalidate sessions
-        await supabase.rpc('increment_security_version', { user_id: userId });
+        if (authError) throw authError;
       }
       
-      await fetchUsers(); // Refresh user list
+      // Log the edit action
+      await supabase
+        .from('AuditLog')
+        .insert({
+          userId: userId, 
+          action: 'UPDATE',
+          resource: 'USER',
+          details: { changes: userData },
+          status: 'SUCCESS'
+        });
+      
+      await fetchUsers();
       return true;
     } catch (error: any) {
-      console.error('Error updating user:', error);
+      console.error('Error editing user:', error);
+      
+      // Log failed edit attempt
+      await supabase
+        .from('AuditLog')
+        .insert({
+          userId: userId, 
+          action: 'UPDATE',
+          resource: 'USER',
+          details: { changes: userData, error: error.message },
+          status: 'FAILED'
+        });
+      
       toast({
-        title: "Error",
-        description: "Failed to update user: " + error.message,
+        title: "Failed to update user",
+        description: error.message,
         variant: "destructive"
       });
       return false;
     }
   };
 
-  const changeRole = async (userId: string, newRole: UserRole) => {
+  const deleteUser = async (userId: string): Promise<boolean> => {
     try {
-      const { data: userData, error: fetchError } = await supabase
-        .from('User')
-        .select('role')
-        .eq('id', userId)
-        .single();
+      // Delete the user from auth
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId);
       
-      if (fetchError) throw fetchError;
+      if (authError) throw authError;
       
-      const oldRole = userData.role;
+      // The user record in the User table will be deleted via trigger
       
-      // Update role in User table
-      const { error: updateError } = await supabase
+      // Log the deletion
+      await supabase
+        .from('AuditLog')
+        .insert({
+          userId: userId, 
+          action: 'DELETE',
+          resource: 'USER',
+          status: 'SUCCESS'
+        });
+      
+      await fetchUsers();
+      return true;
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      
+      // Log failed deletion
+      await supabase
+        .from('AuditLog')
+        .insert({
+          userId: userId, 
+          action: 'DELETE',
+          resource: 'USER',
+          details: { error: error.message },
+          status: 'FAILED'
+        });
+      
+      toast({
+        title: "Failed to delete user",
+        description: error.message,
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const changeRole = async (userId: string, newRole: UserRole): Promise<boolean> => {
+    try {
+      const { error } = await supabase
         .from('User')
         .update({ role: newRole })
         .eq('id', userId);
       
-      if (updateError) throw updateError;
+      if (error) throw error;
       
-      // If new role is STAFF and wasn't before, create Staff record
-      if (newRole === 'STAFF' && oldRole !== 'STAFF') {
-        const { error: staffError } = await supabase
+      // If changing to staff role, create staff record if it doesn't exist
+      if (newRole === 'STAFF') {
+        // Check if staff record exists
+        const { data: existingStaff } = await supabase
           .from('Staff')
-          .insert({
-            userId: userId,
-            title: 'Staff Member',
-            department: 'Default'
-          });
+          .select('id')
+          .eq('userId', userId)
+          .single();
         
-        if (staffError) {
-          console.warn('Error creating staff record:', staffError);
-          // Continue anyway as role has been updated
+        if (!existingStaff) {
+          // Create staff record
+          const { error: staffError } = await supabase
+            .from('Staff')
+            .insert({
+              userId: userId,
+              title: 'New Staff Member',
+              department: 'Unassigned'
+            });
+          
+          if (staffError) throw staffError;
         }
       }
-
-      // Create audit log entry for the role change
+      
+      // Log the role change
       await supabase
         .from('AuditLog')
         .insert({
-          action: 'UPDATE' as AuditAction,
-          resource: 'USER' as AuditResource,
-          details: { oldRole, newRole },
-          userId: userId
+          userId: userId, 
+          action: 'UPDATE',
+          resource: 'USER',
+          details: { role: { from: 'PREVIOUS', to: newRole } },
+          status: 'SUCCESS'
         });
       
-      await fetchUsers(); // Refresh user list
+      await fetchUsers();
       return true;
     } catch (error: any) {
-      console.error('Error changing user role:', error);
+      console.error('Error changing role:', error);
       toast({
-        title: "Error",
-        description: "Failed to change user role: " + error.message,
+        title: "Failed to change role",
+        description: error.message,
         variant: "destructive"
       });
       return false;
     }
   };
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  const getUserById = async (userId: string): Promise<User | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('User')
+        .select(`
+          id, 
+          email, 
+          firstName,
+          lastName,
+          role,
+          status,
+          emailVerified,
+          clientId,
+          client:clientId (
+            companyName
+          ),
+          createdAt,
+          updatedAt
+        `)
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        throw error;
+      }
+      
+      return data;
+    } catch (error: any) {
+      console.error('Error fetching user:', error);
+      toast({
+        title: "Error loading user details",
+        description: error.message,
+        variant: "destructive"
+      });
+      return null;
+    }
+  };
 
   return {
     users,
     isLoading,
     fetchUsers,
-    deleteUser,
     addUser,
     editUser,
-    changeRole
+    deleteUser,
+    changeRole,
+    getUserById
   };
 };

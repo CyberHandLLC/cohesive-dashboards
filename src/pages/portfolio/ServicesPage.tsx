@@ -165,7 +165,7 @@ const ServicesPage = () => {
   };
 
   // Handle deleting a service with checks
-  const handleDeleteService = async (service: ServiceTier) => {
+  const handleDeleteService = async (service) => {
     // Get client and tier counts for warnings
     const clientCount = await getServiceClientCount(service.id);
     const tierCount = await getServiceTierCount(service.id);
@@ -320,6 +320,7 @@ const ServicesPage = () => {
                 onSearchChange={setSearchTerm}
                 onClientUsageClick={handleClientUsageClick}
                 onTierClientUsageClick={handleTierClientUsageClick}
+                onServiceExpand={handleServiceExpand}
               />
             )}
           </CardContent>

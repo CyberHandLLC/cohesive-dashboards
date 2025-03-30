@@ -4,11 +4,10 @@ import { Service } from '@/hooks/useServices';
 import { ServiceTier } from '@/hooks/useServiceTiers';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, ChevronDown, ChevronUp, Plus, Users, Search, ArrowUpDown, Filter } from 'lucide-react';
+import { Edit, Trash2, ChevronDown, ChevronUp, Plus, Users, Search, ArrowUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { formatCurrency } from '@/lib/formatters';
 import { Input } from '@/components/ui/input';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 interface ServicesTableProps {
   services: Service[];
@@ -25,6 +24,7 @@ interface ServicesTableProps {
   onSearchChange: (value: string) => void;
   onClientUsageClick: (serviceId: string) => void;
   onTierClientUsageClick: (tierId: string) => void;
+  onServiceExpand?: (serviceId: string) => void;
 }
 
 export function ServicesTable({
@@ -41,7 +41,8 @@ export function ServicesTable({
   searchQuery,
   onSearchChange,
   onClientUsageClick,
-  onTierClientUsageClick
+  onTierClientUsageClick,
+  onServiceExpand
 }: ServicesTableProps) {
   const [expandedServices, setExpandedServices] = useState<Record<string, boolean>>({});
   const [sortConfig, setSortConfig] = useState<{key: string, direction: 'asc' | 'desc'}>({
@@ -50,10 +51,17 @@ export function ServicesTable({
   });
 
   const toggleExpanded = (serviceId: string) => {
+    const newExpandedState = !expandedServices[serviceId];
+    
     setExpandedServices(prev => ({
       ...prev,
-      [serviceId]: !prev[serviceId]
+      [serviceId]: newExpandedState
     }));
+    
+    // Trigger loading of tiers if expanding and onServiceExpand is provided
+    if (newExpandedState && onServiceExpand) {
+      onServiceExpand(serviceId);
+    }
   };
 
   const handleSort = (key: string) => {

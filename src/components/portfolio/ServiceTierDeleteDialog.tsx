@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ServiceTier } from '@/hooks/useServiceTiers';
 import { AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 interface ServiceTierDeleteDialogProps {
   open: boolean;

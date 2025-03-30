@@ -4,402 +4,265 @@ import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { usePackages } from '@/hooks/usePackages';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { toast } from '@/components/ui/use-toast';
-import { usePackages, PackageInput } from '@/hooks/usePackages';
-import { useServices } from '@/hooks/useServices';
-import { Loader2, ArrowLeft, Save } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/formatters';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PackageFormDialog } from '@/components/portfolio/PackageFormDialog';
+import { PackageDeleteDialog } from '@/components/portfolio/PackageDeleteDialog';
 
 const PackageDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [packageClientCount, setPackageClientCount] = useState<number>(0);
   
   const {
     packages,
-    isLoading: packagesLoading,
+    isLoading,
     updatePackage,
+    deletePackage,
     loadPackageServices,
     loadedServices,
+    loadingServices,
+    getPackageClientCount
   } = usePackages();
   
-  const { services: allServices, isLoading: servicesLoading } = useServices();
-  
-  const currentPackage = packages?.find(pkg => pkg.id === id);
+  const packageDetails = packages?.find(pkg => pkg.id === id);
   
   useEffect(() => {
-    if (id && currentPackage) {
+    if (id) {
       loadPackageServices(id);
-    }
-  }, [id, currentPackage]);
-  
-  const formSchema = z.object({
-    name: z.string().min(1, "Package name is required"),
-    description: z.string().optional(),
-    price: z.coerce.number().min(0, "Price must be a non-negative number"),
-    discount: z.coerce.number().min(0, "Discount must be a non-negative number").max(100, "Discount cannot exceed 100%").optional().nullable(),
-    monthlyPrice: z.coerce.number().min(0, "Monthly price must be a non-negative number").optional().nullable(),
-    services: z.array(z.string()).min(1, "At least one service is required"),
-    availability: z.enum(["ACTIVE", "DISCONTINUED", "COMING_SOON"])
-  });
-  
-  type FormValues = z.infer<typeof formSchema>;
-  
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: currentPackage?.name || "",
-      description: currentPackage?.description || "",
-      price: currentPackage?.price || 0,
-      discount: currentPackage?.discount || null,
-      monthlyPrice: currentPackage?.monthlyPrice || null,
-      services: currentPackage?.services || [],
-      availability: currentPackage?.availability || "ACTIVE"
-    }
-  });
-  
-  // Update form values when package data is loaded
-  useEffect(() => {
-    if (currentPackage) {
-      form.reset({
-        name: currentPackage.name,
-        description: currentPackage.description || "",
-        price: currentPackage.price,
-        discount: currentPackage.discount,
-        monthlyPrice: currentPackage.monthlyPrice,
-        services: currentPackage.services,
-        availability: currentPackage.availability
-      });
-    }
-  }, [currentPackage, form]);
-  
-  const onSubmit = async (data: FormValues) => {
-    if (!id) return;
-    
-    setIsLoading(true);
-    try {
-      await updatePackage({ 
-        id, 
-        updates: data as PackageInput
-      });
       
-      toast({
-        title: "Package updated",
-        description: "Package has been updated successfully"
+      // Get client count for the package
+      getPackageClientCount(id).then(count => {
+        setPackageClientCount(count);
       });
-    } catch (error) {
-      console.error("Failed to update package:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update package",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+    }
+  }, [id, loadPackageServices, getPackageClientCount]);
+  
+  const handleDelete = async () => {
+    if (id) {
+      await deletePackage(id);
+      navigate('/admin/portfolio/packages');
     }
   };
-  
+
   const breadcrumbs = [
     { label: 'Admin', href: '/admin' },
     { label: 'Portfolio', href: '/admin/portfolio' },
     { label: 'Packages', href: '/admin/portfolio/packages' },
-    { label: currentPackage?.name || 'Package Details' }
+    { label: packageDetails?.name || 'Package Details' }
   ];
-  
-  if (!id) {
+
+  if (isLoading) {
     return (
-      <DashboardLayout breadcrumbs={breadcrumbs}>
-        <Card>
-          <CardContent className="pt-6">
-            <p>Invalid package ID. Please go back to the packages list.</p>
-            <Button onClick={() => navigate('/admin/portfolio/packages')} className="mt-4">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Packages
-            </Button>
-          </CardContent>
-        </Card>
+      <DashboardLayout 
+        breadcrumbs={breadcrumbs}
+        role="admin"
+      >
+        <div className="flex justify-center items-center h-64">
+          <p className="text-muted-foreground">Loading package details...</p>
+        </div>
       </DashboardLayout>
     );
   }
-  
-  if (packagesLoading || !currentPackage) {
+
+  if (!packageDetails) {
     return (
-      <DashboardLayout breadcrumbs={breadcrumbs}>
-        <Card>
-          <CardContent className="flex items-center justify-center py-16">
-            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          </CardContent>
-        </Card>
-      </DashboardLayout>
-    );
-  }
-  
-  return (
-    <DashboardLayout breadcrumbs={breadcrumbs}>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Edit Package</h1>
+      <DashboardLayout 
+        breadcrumbs={breadcrumbs}
+        role="admin"
+      >
+        <div className="flex flex-col justify-center items-center h-64">
+          <p className="text-muted-foreground mb-4">Package not found</p>
           <Button variant="outline" onClick={() => navigate('/admin/portfolio/packages')}>
             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Packages
           </Button>
         </div>
+      </DashboardLayout>
+    );
+  }
+
+  return (
+    <DashboardLayout 
+      breadcrumbs={breadcrumbs}
+      role="admin"
+    >
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center space-x-4">
+            <Button variant="outline" size="sm" onClick={() => navigate('/admin/portfolio/packages')}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+            <h1 className="text-2xl font-bold">{packageDetails.name}</h1>
+            <Badge variant={
+              packageDetails.availability === 'ACTIVE' ? 'default' :
+              packageDetails.availability === 'DISCONTINUED' ? 'outline' : 'secondary'
+            }>
+              {packageDetails.availability}
+            </Badge>
+          </div>
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(true)}>
+              <Edit className="mr-2 h-4 w-4" /> Edit
+            </Button>
+            <Button variant="destructive" onClick={() => setIsDeleteDialogOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" /> Delete
+            </Button>
+          </div>
+        </div>
         
-        <Card>
-          <CardHeader>
-            <CardTitle>Package Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="services">Services</TabsTrigger>
+            <TabsTrigger value="clients">Client Usage</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="overview" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Package Details</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Name</h3>
+                    <p>{packageDetails.name}</p>
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="availability"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Availability</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          value={field.value}
-                        >
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select availability" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="ACTIVE">Active</SelectItem>
-                            <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
-                            <SelectItem value="COMING_SOON">Coming Soon</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Price</h3>
+                    <p>{formatCurrency(packageDetails.price)}</p>
+                  </div>
                   
-                  <FormField
-                    control={form.control}
-                    name="price"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Price</FormLabel>
-                        <FormControl>
-                          <Input type="number" step="0.01" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {packageDetails.monthlyPrice !== null && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Monthly Price</h3>
+                      <p>{formatCurrency(packageDetails.monthlyPrice)}</p>
+                    </div>
+                  )}
                   
-                  <FormField
-                    control={form.control}
-                    name="monthlyPrice"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Price</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            {...field} 
-                            value={field.value === null ? '' : field.value}
-                            onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {packageDetails.discount !== null && (
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground">Discount</h3>
+                      <p>{packageDetails.discount}%</p>
+                    </div>
+                  )}
                   
-                  <FormField
-                    control={form.control}
-                    name="discount"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Discount (%)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="number" 
-                            step="0.01" 
-                            {...field} 
-                            value={field.value === null ? '' : field.value}
-                            onChange={(e) => field.onChange(e.target.value === '' ? null : parseFloat(e.target.value))}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Status</h3>
+                    <p>{packageDetails.availability}</p>
+                  </div>
                   
-                  <div className="col-span-2">
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Description</FormLabel>
-                          <FormControl>
-                            <Textarea rows={3} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
+                    <p>{new Date(packageDetails.createdAt).toLocaleDateString()}</p>
                   </div>
                   
                   <div className="col-span-2">
-                    <FormField
-                      control={form.control}
-                      name="services"
-                      render={() => (
-                        <FormItem>
-                          <div className="mb-4">
-                            <FormLabel className="text-base">Included Services</FormLabel>
-                          </div>
-                          
-                          {servicesLoading ? (
-                            <div className="py-2 text-muted-foreground">
-                              <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                              Loading services...
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              {allServices?.map((service) => (
-                                <div key={service.id} className="flex items-center space-x-2">
-                                  <FormField
-                                    control={form.control}
-                                    name="services"
-                                    render={({ field }) => {
-                                      return (
-                                        <FormItem
-                                          key={service.id}
-                                          className="flex flex-row items-start space-x-3 space-y-0"
-                                        >
-                                          <FormControl>
-                                            <Checkbox
-                                              checked={field.value?.includes(service.id)}
-                                              onCheckedChange={(checked) => {
-                                                return checked
-                                                  ? field.onChange([...field.value, service.id])
-                                                  : field.onChange(
-                                                      field.value?.filter(
-                                                        (value) => value !== service.id
-                                                      )
-                                                    )
-                                              }}
-                                            />
-                                          </FormControl>
-                                          <div className="flex items-center gap-2">
-                                            <div className="font-medium leading-none">
-                                              {service.name}
-                                            </div>
-                                            {service.price && (
-                                              <span className="text-sm text-muted-foreground">
-                                                ({formatCurrency(service.price)})
-                                              </span>
-                                            )}
-                                          </div>
-                                        </FormItem>
-                                      )
-                                    }}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+                    <p>{packageDetails.description || 'No description provided'}</p>
                   </div>
                 </div>
                 
-                <div className="flex justify-end pt-4">
+                {packageDetails.customFields && Object.keys(packageDetails.customFields).length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Custom Fields</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {Object.entries(packageDetails.customFields).map(([key, value]) => (
+                        <div key={key}>
+                          <h4 className="text-xs font-medium text-muted-foreground">{key}</h4>
+                          <p>{String(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="services" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Included Services</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loadingServices[id!] ? (
+                  <p className="text-muted-foreground">Loading services...</p>
+                ) : loadedServices[id!]?.length > 0 ? (
+                  <ul className="space-y-2">
+                    {loadedServices[id!].map(service => (
+                      <li key={service.id} className="p-2 border rounded-md flex justify-between items-center">
+                        <div>
+                          <p className="font-medium">{service.name}</p>
+                          <p className="text-sm text-muted-foreground">{service.description}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">{formatCurrency(service.price || 0)}</p>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => navigate(`/admin/portfolio/services?serviceId=${service.id}`)}
+                          >
+                            View Details
+                          </Button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-muted-foreground">No services included in this package</p>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="clients" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Client Usage</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <h3 className="text-3xl font-semibold mb-2">{packageClientCount}</h3>
+                  <p className="text-muted-foreground">Active client subscriptions</p>
                   <Button 
-                    type="submit" 
-                    disabled={isLoading || packagesLoading}
-                    className="w-full md:w-auto"
+                    variant="outline" 
+                    className="mt-4"
+                    onClick={() => navigate(`/admin/accounts/clients?packageId=${id}`)}
                   >
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <Save className="mr-2 h-4 w-4" /> Save Changes
+                    View Client List
                   </Button>
                 </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle>Included Services</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loadedServices[id]?.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {loadedServices[id].map((service) => (
-                  <Card key={service.id} className="border">
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-semibold">{service.name}</h3>
-                          {service.description && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                              {service.description}
-                            </p>
-                          )}
-                        </div>
-                        <Badge>{formatCurrency(service.price || 0)}</Badge>
-                      </div>
-                      
-                      {service.features && service.features.length > 0 && (
-                        <div className="mt-4">
-                          <h4 className="text-sm font-medium mb-2">Features</h4>
-                          <ul className="text-sm space-y-1">
-                            {service.features.map((feature, index) => (
-                              <li key={index} className="flex items-center">
-                                <span className="mr-2 text-green-500">•</span>
-                                <span>{feature}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : (
-              <div className="py-6 text-center text-muted-foreground">
-                {loadedServices[id] ? "No services added to this package" : "Loading services..."}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
+      
+      {/* Edit Package Dialog */}
+      <PackageFormDialog
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSubmit={(values) => updatePackage({ id: id!, updates: values })}
+        initialData={packageDetails}
+        title="Edit Package"
+      />
+      
+      {/* Delete Package Dialog */}
+      <PackageDeleteDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        package={packageDetails}
+        clientCount={packageClientCount}
+        onConfirm={handleDelete}
+      />
     </DashboardLayout>
   );
 };

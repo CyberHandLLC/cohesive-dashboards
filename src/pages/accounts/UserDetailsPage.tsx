@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { UserRoleBadge } from '@/components/users/UserRoleBadge';
+import UserRoleBadge from '@/components/users/UserRoleBadge';
 import { UserStatusBadge } from '@/components/users/UserStatusBadge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,7 +27,8 @@ import {
   Key,
   UserCircle2,
   Building,
-  IdCard
+  IdCard,
+  Edit
 } from 'lucide-react';
 import { formatDate } from '@/lib/formatters';
 import { User as UserType } from '@/hooks/users/useUsers';

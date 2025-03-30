@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -11,6 +10,7 @@ import { formatCurrency } from '@/lib/formatters';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PackageFormDialog } from '@/components/portfolio/PackageFormDialog';
 import { PackageDeleteDialog } from '@/components/portfolio/PackageDeleteDialog';
+import { toast } from '@/components/ui/use-toast';
 
 const PackageDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,15 +34,24 @@ const PackageDetailsPage = () => {
   const packageDetails = packages?.find(pkg => pkg.id === id);
   
   useEffect(() => {
-    if (id) {
-      loadPackageServices(id);
+    if (id && packages?.length > 0) {
+      const packageExists = packages.some(pkg => pkg.id === id);
       
-      // Get client count for the package
-      getPackageClientCount(id).then(count => {
-        setPackageClientCount(count);
-      });
+      if (!packageExists) {
+        toast({
+          title: "Package not found",
+          description: "The package you're looking for doesn't exist or has been deleted",
+          variant: "destructive"
+        });
+      } else {
+        loadPackageServices(id);
+        
+        getPackageClientCount(id).then(count => {
+          setPackageClientCount(count);
+        });
+      }
     }
-  }, [id, loadPackageServices, getPackageClientCount]);
+  }, [id, packages, loadPackageServices, getPackageClientCount]);
   
   const handleDelete = async () => {
     if (id) {
@@ -246,7 +255,6 @@ const PackageDetailsPage = () => {
         </Tabs>
       </div>
       
-      {/* Edit Package Dialog */}
       <PackageFormDialog
         open={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
@@ -255,7 +263,6 @@ const PackageDetailsPage = () => {
         title="Edit Package"
       />
       
-      {/* Delete Package Dialog */}
       <PackageDeleteDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}

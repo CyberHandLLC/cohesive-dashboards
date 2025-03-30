@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Package } from '@/hooks/usePackages';
 import { Service } from '@/hooks/useServices';
@@ -163,6 +164,7 @@ export function PackagesTable({
             </TableRow>
           ) : (
             sortedPackages.map((pkg) => (
+              // Fix: Use actual React Fragment syntax, not with data-lov-id attribute
               <React.Fragment key={pkg.id}>
                 <TableRow className="cursor-pointer" onClick={() => onPackageRowClick && onPackageRowClick(pkg.id)}>
                   <TableCell className="font-medium">

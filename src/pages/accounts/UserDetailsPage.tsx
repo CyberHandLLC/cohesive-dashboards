@@ -37,20 +37,20 @@ import UserStatusBadge from '@/components/users/UserStatusBadge';
 import UserEditDialog from '@/components/users/UserEditDialog';
 import { supabase } from '@/integrations/supabase/client';
 
+type UserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED';
+
 interface User {
   id: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
-  firstName?: string;
-  lastName?: string;
-  role: UserRole;
+  phoneNumber: string | null;
+  role: string;
   status: UserStatus;
-  emailVerified?: boolean;
-  clientId?: string;
-  client?: {
-    companyName: string;
-  };
   createdAt: string;
-  updatedAt?: string;
+  updatedAt: string;
+  emailVerified: boolean;
+  clientId?: string | null;
 }
 
 const UserDetailsPage = () => {

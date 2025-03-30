@@ -15,7 +15,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronLeft, Edit, Calendar, Briefcase, Users, MessageSquare } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  Edit, 
+  Calendar, 
+  Briefcase, 
+  Users, 
+  MessageSquare,
+  Ticket,
+  Clock 
+} from 'lucide-react';
+import { formatDate } from '@/lib/formatters';
 
 interface StaffMember {
   id: string;
@@ -139,6 +149,7 @@ const StaffDetailsPage = () => {
       setAssignedClients(clientsData || []);
       
       // Fetch support tickets assigned to this staff member
+      console.log('Fetching support tickets for staff ID:', id);
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('SupportTicket')
         .select(`
@@ -154,9 +165,11 @@ const StaffDetailsPage = () => {
         .eq('staffId', id);
       
       if (ticketsError) {
+        console.error('Error fetching support tickets:', ticketsError);
         throw ticketsError;
       }
       
+      console.log('Support tickets data:', ticketsData);
       setSupportTickets(ticketsData || []);
       
       // For demo purposes, we'll use the mock tasks since there's no actual tasks table
@@ -176,20 +189,6 @@ const StaffDetailsPage = () => {
       });
     } finally {
       setIsLoadingRelations(false);
-    }
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'Not specified';
-    
-    try {
-      return new Date(dateString).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-    } catch {
-      return 'Invalid date';
     }
   };
 
@@ -315,7 +314,7 @@ const StaffDetailsPage = () => {
               <Users className="h-4 w-4 mr-2" /> Assigned Clients
             </TabsTrigger>
             <TabsTrigger value="tickets">
-              <MessageSquare className="h-4 w-4 mr-2" /> Support Tickets
+              <Ticket className="h-4 w-4 mr-2" /> Support Tickets
             </TabsTrigger>
             <TabsTrigger value="tasks">
               <Briefcase className="h-4 w-4 mr-2" /> Tasks
@@ -367,7 +366,7 @@ const StaffDetailsPage = () => {
               <CardContent>
                 {isLoadingRelations ? (
                   <div className="text-center py-10">Loading support tickets...</div>
-                ) : supportTickets.length > 0 ? (
+                ) : supportTickets && supportTickets.length > 0 ? (
                   <div className="grid gap-4">
                     {supportTickets.map((ticket) => (
                       <div key={ticket.id} className="border rounded-md p-4 hover:bg-accent/50 transition-colors">
@@ -421,7 +420,8 @@ const StaffDetailsPage = () => {
                           <div className="flex items-center gap-4">
                             <p className="text-sm text-muted-foreground">{task.progress}%</p>
                             {task.dueDate && (
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-xs text-muted-foreground flex items-center">
+                                <Clock className="h-3 w-3 mr-1" />
                                 Due: {formatDate(task.dueDate)}
                               </p>
                             )}

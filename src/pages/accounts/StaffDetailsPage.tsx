@@ -36,11 +36,40 @@ interface StaffMember {
   notes: string | null;
 }
 
+interface Client {
+  id: string;
+  companyName: string;
+  industry: string | null;
+  status: string;
+}
+
+interface Ticket {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+  createdAt: string;
+  client: {
+    companyName: string;
+  } | null;
+}
+
+interface Task {
+  id: string;
+  title: string;
+  progress: number;
+  dueDate: string | null;
+}
+
 const StaffDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [staffMember, setStaffMember] = useState<StaffMember | null>(null);
+  const [assignedClients, setAssignedClients] = useState<Client[]>([]);
+  const [supportTickets, setSupportTickets] = useState<Ticket[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoadingRelations, setIsLoadingRelations] = useState<boolean>(true);
   const { toast } = useToast();
 
   const breadcrumbs = [
@@ -77,6 +106,7 @@ const StaffDetailsPage = () => {
         
         if (data) {
           setStaffMember(data as StaffMember);
+          await fetchRelatedData(data.userId);
         }
       } catch (error: any) {
         console.error('Error fetching staff details:', error);
@@ -92,6 +122,62 @@ const StaffDetailsPage = () => {
     
     fetchStaffDetails();
   }, [id, toast]);
+
+  const fetchRelatedData = async (userId: string) => {
+    setIsLoadingRelations(true);
+    try {
+      // Fetch clients where this staff member is the account manager
+      const { data: clientsData, error: clientsError } = await supabase
+        .from('Client')
+        .select('id, companyName, industry, status')
+        .eq('accountManagerId', userId);
+      
+      if (clientsError) {
+        throw clientsError;
+      }
+      
+      setAssignedClients(clientsData || []);
+      
+      // Fetch support tickets assigned to this staff member
+      const { data: ticketsData, error: ticketsError } = await supabase
+        .from('SupportTicket')
+        .select(`
+          id, 
+          title, 
+          status, 
+          priority, 
+          createdAt,
+          client:clientId (
+            companyName
+          )
+        `)
+        .eq('staffId', id);
+      
+      if (ticketsError) {
+        throw ticketsError;
+      }
+      
+      setSupportTickets(ticketsData || []);
+      
+      // For demo purposes, we'll use the mock tasks since there's no actual tasks table
+      // In a real application, you would fetch tasks from your database
+      setTasks([
+        { id: '1', title: 'Project Alpha Completion', progress: 75, dueDate: '2023-07-15' },
+        { id: '2', title: 'Client Onboarding', progress: 50, dueDate: '2023-07-20' },
+        { id: '3', title: 'Bug Fixes', progress: 90, dueDate: '2023-07-10' },
+      ]);
+      
+    } catch (error: any) {
+      console.error('Error fetching related data:', error);
+      toast({
+        title: "Error loading related data",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoadingRelations(false);
+    }
+  };
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return 'Not specified';
@@ -243,9 +329,31 @@ const StaffDetailsPage = () => {
                 <CardDescription>Clients this staff member is managing</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-10 text-muted-foreground">
-                  No clients assigned to this staff member yet
-                </div>
+                {isLoadingRelations ? (
+                  <div className="text-center py-10">Loading assigned clients...</div>
+                ) : assignedClients.length > 0 ? (
+                  <div className="grid gap-4">
+                    {assignedClients.map((client) => (
+                      <div key={client.id} className="border rounded-md p-4 hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-medium">{client.companyName}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {client.industry || 'No industry specified'}
+                            </p>
+                          </div>
+                          <Badge variant={client.status === 'ACTIVE' ? 'default' : 'secondary'}>
+                            {client.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground">
+                    No clients assigned to this staff member yet
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -257,9 +365,36 @@ const StaffDetailsPage = () => {
                 <CardDescription>Tickets assigned to this staff member</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-10 text-muted-foreground">
-                  No support tickets assigned to this staff member yet
-                </div>
+                {isLoadingRelations ? (
+                  <div className="text-center py-10">Loading support tickets...</div>
+                ) : supportTickets.length > 0 ? (
+                  <div className="grid gap-4">
+                    {supportTickets.map((ticket) => (
+                      <div key={ticket.id} className="border rounded-md p-4 hover:bg-accent/50 transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-medium">{ticket.title}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {ticket.client?.companyName || 'No client'} • {formatDate(ticket.createdAt)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={ticket.status === 'OPEN' ? 'default' : ticket.status === 'IN_PROGRESS' ? 'secondary' : 'outline'}>
+                              {ticket.status.replace('_', ' ')}
+                            </Badge>
+                            <Badge variant={ticket.priority === 'HIGH' ? 'destructive' : ticket.priority === 'MEDIUM' ? 'default' : 'outline'}>
+                              {ticket.priority}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground">
+                    No support tickets assigned to this staff member yet
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -275,29 +410,32 @@ const StaffDetailsPage = () => {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-6">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium">Project Alpha Completion</p>
-                      <p className="text-sm text-muted-foreground">75%</p>
-                    </div>
-                    <Progress value={75} className="h-2" />
+                {isLoadingRelations ? (
+                  <div className="text-center py-10">Loading tasks...</div>
+                ) : tasks.length > 0 ? (
+                  <div className="space-y-6">
+                    {tasks.map((task) => (
+                      <div key={task.id}>
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium">{task.title}</p>
+                          <div className="flex items-center gap-4">
+                            <p className="text-sm text-muted-foreground">{task.progress}%</p>
+                            {task.dueDate && (
+                              <p className="text-xs text-muted-foreground">
+                                Due: {formatDate(task.dueDate)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <Progress value={task.progress} className="h-2" />
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium">Client Onboarding</p>
-                      <p className="text-sm text-muted-foreground">50%</p>
-                    </div>
-                    <Progress value={50} className="h-2" />
+                ) : (
+                  <div className="text-center py-10 text-muted-foreground">
+                    No tasks assigned to this staff member yet
                   </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-medium">Bug Fixes</p>
-                      <p className="text-sm text-muted-foreground">90%</p>
-                    </div>
-                    <Progress value={90} className="h-2" />
-                  </div>
-                </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

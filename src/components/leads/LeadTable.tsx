@@ -1,14 +1,5 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { 
-  Mail,
-  Phone, 
-  Edit, 
-  Trash2, 
-  UserPlus,
-  User
-} from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -17,56 +8,34 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-
-interface Lead {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  status: string;
-  leadSource: string | null;
-  assignedToId: string | null;
-  assignedTo?: {
-    firstName: string | null;
-    lastName: string | null;
-    email: string;
-  };
-  notes: { content: string } | null;
-  followUpDate: string | null;
-  convertedClientId: string | null;
-  convertedClient?: {
-    companyName: string;
-    id: string;
-  };
-  createdAt: string;
-}
+import { Edit, Trash2, UserCheck, UserPlus } from 'lucide-react';
+import { Lead, LeadStatus } from '@/types/lead';
+import { Badge } from '@/components/ui/badge';
 
 interface LeadTableProps {
   leads: Lead[];
   isLoading: boolean;
+  searchQuery: string;
   onEdit: (lead: Lead) => void;
-  onDelete: (id: string) => void;
+  onDelete: (leadId: string) => void;
   onConvert: (lead: Lead) => void;
   onAssign: (lead: Lead) => void;
+  onView: (lead: Lead) => void;
 }
 
 const LeadTable: React.FC<LeadTableProps> = ({
   leads,
   isLoading,
+  searchQuery,
   onEdit,
   onDelete,
   onConvert,
   onAssign,
+  onView,
 }) => {
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string | null | undefined) => {
+    if (!dateString) return '-';
     try {
       return new Date(dateString).toLocaleDateString();
     } catch (error) {
@@ -74,46 +43,36 @@ const LeadTable: React.FC<LeadTableProps> = ({
     }
   };
 
-  const truncateText = (text: string, length = 50) => {
-    if (text && text.length > length) {
-      return text.substring(0, length) + '...';
-    }
-    return text;
-  };
-
-  const getStatusBadge = (status: string) => {
-    switch(status) {
+  const getStatusBadgeClass = (status: LeadStatus) => {
+    switch (status) {
       case 'NEW':
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">New</Badge>;
+        return 'bg-blue-100 text-blue-800';
       case 'CONTACTED':
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Contacted</Badge>;
+        return 'bg-indigo-100 text-indigo-800';
       case 'QUALIFIED':
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Qualified</Badge>;
+        return 'bg-green-100 text-green-800';
       case 'CONVERTED':
-        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">Converted</Badge>;
+        return 'bg-purple-100 text-purple-800';
       case 'LOST':
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Lost</Badge>;
+        return 'bg-red-100 text-red-800';
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getSourceBadge = (source: string | null) => {
-    if (!source) return null;
-    
-    switch(source) {
+  const getSourceBadgeClass = (source: string) => {
+    switch (source) {
       case 'WEBSITE':
-        return <Badge variant="outline" className="bg-blue-50">Website</Badge>;
+        return 'bg-green-50 text-green-700';
       case 'REFERRAL':
-        return <Badge variant="outline" className="bg-green-50">Referral</Badge>;
+        return 'bg-blue-50 text-blue-700';
       case 'ADVERTISEMENT':
-        return <Badge variant="outline" className="bg-yellow-50">Advertisement</Badge>;
+        return 'bg-purple-50 text-purple-700';
       case 'EVENT':
-        return <Badge variant="outline" className="bg-purple-50">Event</Badge>;
+        return 'bg-orange-50 text-orange-700';
       case 'OTHER':
-        return <Badge variant="outline" className="bg-gray-50">Other</Badge>;
       default:
-        return <Badge variant="outline">{source}</Badge>;
+        return 'bg-gray-50 text-gray-700';
     }
   };
 
@@ -125,135 +84,111 @@ const LeadTable: React.FC<LeadTableProps> = ({
     );
   }
 
-  if (leads.length === 0) {
-    return (
-      <div className="text-center py-8 border rounded-md bg-gray-50">
-        <p className="text-muted-foreground">No leads found</p>
-      </div>
-    );
-  }
-
   return (
     <div className="overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Contact Info</TableHead>
+            <TableHead>Email</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Assigned To</TableHead>
-            <TableHead>Follow-up</TableHead>
-            <TableHead className="hidden md:table-cell">Created</TableHead>
+            <TableHead>Follow-Up</TableHead>
+            <TableHead>Created</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {leads.map((lead) => (
-            <TableRow key={lead.id}>
-              <TableCell className="font-medium">
-                {lead.name}
-                {lead.convertedClientId && lead.convertedClient && (
-                  <div className="mt-1">
-                    <Link 
-                      to={`/admin/accounts/clients/${lead.convertedClientId}/overview`}
-                      className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                    >
-                      <UserPlus className="h-3 w-3" />
-                      {lead.convertedClient.companyName}
-                    </Link>
-                  </div>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className="flex flex-col text-xs space-y-1">
-                  <span className="flex items-center">
-                    <Mail className="h-3 w-3 mr-1" />{lead.email}
-                  </span>
-                  {lead.phone && (
-                    <span className="flex items-center">
-                      <Phone className="h-3 w-3 mr-1" />{lead.phone}
-                    </span>
-                  )}
-                  {lead.notes && (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger className="text-muted-foreground text-left">
-                          {truncateText(lead.notes.content, 20)}
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="max-w-xs">{lead.notes.content}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>{getStatusBadge(lead.status)}</TableCell>
-              <TableCell>{lead.leadSource ? getSourceBadge(lead.leadSource) : "—"}</TableCell>
-              <TableCell>
-                {lead.assignedTo ? (
-                  <div className="flex items-center gap-2">
-                    <User className="h-3 w-3" />
+          {leads.length > 0 ? (
+            leads.map((lead) => (
+              <TableRow 
+                key={lead.id} 
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => onView(lead)}
+              >
+                <TableCell className="font-medium">{lead.name}</TableCell>
+                <TableCell>{lead.email}</TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={getStatusBadgeClass(lead.status)}>
+                    {lead.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="outline" className={getSourceBadgeClass(lead.leadSource)}>
+                    {lead.leadSource}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {lead.assignedTo ? (
                     <span>
-                      {`${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`.trim() || lead.assignedTo.email}
+                      {lead.assignedTo.firstName || lead.assignedTo.lastName
+                        ? `${lead.assignedTo.firstName || ''} ${lead.assignedTo.lastName || ''}`
+                        : lead.assignedTo.email}
                     </span>
+                  ) : (
+                    <span className="text-muted-foreground">Unassigned</span>
+                  )}
+                </TableCell>
+                <TableCell>{formatDate(lead.followUpDate)}</TableCell>
+                <TableCell>{formatDate(lead.createdAt)}</TableCell>
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-end gap-2">
+                    {lead.status !== 'CONVERTED' && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onConvert(lead);
+                        }}
+                        title="Convert to client"
+                      >
+                        <UserCheck className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAssign(lead);
+                      }}
+                      title="Assign staff"
+                    >
+                      <UserPlus className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEdit(lead);
+                      }}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(lead.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                ) : (
-                  <span className="text-muted-foreground">Unassigned</span>
-                )}
-              </TableCell>
-              <TableCell>
-                {lead.followUpDate ? (
-                  <span 
-                    className={
-                      new Date(lead.followUpDate) < new Date() 
-                        ? "text-red-600 font-medium" 
-                        : ""
-                    }
-                  >
-                    {formatDate(lead.followUpDate)}
-                  </span>
-                ) : (
-                  "—"
-                )}
-              </TableCell>
-              <TableCell className="hidden md:table-cell">
-                {formatDate(lead.createdAt)}
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex justify-end gap-1">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => onEdit(lead)}
-                    title="Edit"
-                  >
-                    <Edit className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="text-blue-600" 
-                    onClick={() => onConvert(lead)}
-                    disabled={lead.status === 'CONVERTED'}
-                    title="Convert to client"
-                  >
-                    <UserPlus className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="text-red-600"
-                    onClick={() => onDelete(lead.id)}
-                    title="Delete"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                </TableCell>
+              </TableRow>
+            ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                {searchQuery ? 'No leads match your search criteria' : 'No leads found'}
               </TableCell>
             </TableRow>
-          ))}
+          )}
         </TableBody>
       </Table>
     </div>

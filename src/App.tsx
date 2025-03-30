@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -57,6 +56,9 @@ import ObserverPackagesPage from "./pages/observer/PackagesPage";
 import ObserverBlogPage from "./pages/observer/BlogPage";
 import ObserverContactPage from "./pages/observer/ContactPage";
 
+// Add import for the new StaffDetailsPage
+import StaffDetailsPage from "./pages/accounts/StaffDetailsPage";
+
 const queryClient = new QueryClient();
 
 // Helper component to wrap dashboard routes with DashboardShell
@@ -87,6 +89,7 @@ const App = () => (
           <Route path="/admin/accounts/users" element={<DashboardRoute element={<UsersPage />} />} />
           <Route path="/admin/accounts/users/:id" element={<DashboardRoute element={<UserDetailsPage />} />} />
           <Route path="/admin/accounts/staff" element={<DashboardRoute element={<StaffManagementPage />} />} />
+          <Route path="/admin/accounts/staff/:id" element={<DashboardRoute element={<StaffDetailsPage />} />} />
           
           {/* Admin Client Detail Routes - Updated with consistent paths */}
           <Route path="/admin/accounts/clients/:id/overview" element={<DashboardRoute element={<AdminClientProfilePage />} />} />

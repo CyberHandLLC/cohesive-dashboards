@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -37,6 +36,22 @@ import UserRoleBadge from '@/components/users/UserRoleBadge';
 import UserStatusBadge from '@/components/users/UserStatusBadge';
 import UserEditDialog from '@/components/users/UserEditDialog';
 import { supabase } from '@/integrations/supabase/client';
+
+interface User {
+  id: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  role: UserRole;
+  status: UserStatus;
+  emailVerified?: boolean;
+  clientId?: string;
+  client?: {
+    companyName: string;
+  };
+  createdAt: string;
+  updatedAt?: string;
+}
 
 const UserDetailsPage = () => {
   const { id } = useParams<{ id: string }>();

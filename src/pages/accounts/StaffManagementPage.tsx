@@ -1,5 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +64,7 @@ interface StaffMember {
 }
 
 const StaffManagementPage = () => {
+  const navigate = useNavigate();
   const [staffMembers, setStaffMembers] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -118,7 +119,6 @@ const StaffManagementPage = () => {
         .order('createdAt', { ascending: false });
       
       if (searchQuery) {
-        // Search by name or email through the joined User table
         query = query.or(`user.firstName.ilike.%${searchQuery}%,user.lastName.ilike.%${searchQuery}%,user.email.ilike.%${searchQuery}%`);
       }
       
@@ -148,7 +148,6 @@ const StaffManagementPage = () => {
 
   const fetchAvailableUsers = async () => {
     try {
-      // Query users with STAFF role who don't already have a staff record
       const { data: staffUsers, error: staffError } = await supabase
         .from('User')
         .select('id, firstName, lastName, email')
@@ -156,14 +155,12 @@ const StaffManagementPage = () => {
       
       if (staffError) throw staffError;
 
-      // Get existing staff user IDs
       const { data: existingStaff, error: existingStaffError } = await supabase
         .from('Staff')
         .select('userId');
       
       if (existingStaffError) throw existingStaffError;
 
-      // Filter out users who already have a staff record
       const existingUserIds = existingStaff?.map(staff => staff.userId) || [];
       const availableUsersData = staffUsers?.filter(user => !existingUserIds.includes(user.id)) || [];
       
@@ -180,7 +177,6 @@ const StaffManagementPage = () => {
 
   const handleAddStaff = async (values: any) => {
     try {
-      // Parse skills from comma-separated string to array
       const skillsArray = values.skills ? values.skills.split(',').map((skill: string) => skill.trim()) : null;
       
       const { data, error } = await supabase
@@ -222,7 +218,6 @@ const StaffManagementPage = () => {
     if (!selectedStaff) return;
     
     try {
-      // Parse skills from comma-separated string to array
       const skillsArray = values.skills ? values.skills.split(',').map((skill: string) => skill.trim()) : null;
       
       const { error } = await supabase
@@ -288,6 +283,10 @@ const StaffManagementPage = () => {
         });
       }
     }
+  };
+
+  const handleViewStaff = (staff: StaffMember) => {
+    navigate(`/admin/accounts/staff/${staff.id}`);
   };
 
   const openAddDialog = () => {
@@ -377,7 +376,11 @@ const StaffManagementPage = () => {
                   <TableBody>
                     {staffMembers.length > 0 ? (
                       staffMembers.map((staff) => (
-                        <TableRow key={staff.id}>
+                        <TableRow 
+                          key={staff.id} 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleViewStaff(staff)}
+                        >
                           <TableCell>
                             {staff.user.firstName && staff.user.lastName
                               ? `${staff.user.firstName} ${staff.user.lastName}`
@@ -398,12 +401,26 @@ const StaffManagementPage = () => {
                               )}
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                             <div className="flex justify-end gap-2">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(staff)}>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openEditDialog(staff);
+                                }}
+                              >
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDeleteStaff(staff.id)}>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteStaff(staff.id);
+                                }}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
@@ -425,7 +442,6 @@ const StaffManagementPage = () => {
         </Card>
       </div>
 
-      {/* Add Staff Dialog */}
       <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -544,7 +560,6 @@ const StaffManagementPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Staff Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>

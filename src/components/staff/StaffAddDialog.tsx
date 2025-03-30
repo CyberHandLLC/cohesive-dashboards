@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import TagInput from '@/components/admin/content/TagInput';
 
 interface StaffAddDialogProps {
   open: boolean;
@@ -47,7 +48,7 @@ const StaffAddDialog: React.FC<StaffAddDialogProps> = ({
       title: '',
       department: '',
       bio: '',
-      skills: '',
+      skills: [] as string[],
       hireDate: '',
     },
   });
@@ -142,8 +143,15 @@ const StaffAddDialog: React.FC<StaffAddDialogProps> = ({
                 <FormItem>
                   <FormLabel>Skills</FormLabel>
                   <FormControl>
-                    <Input placeholder="e.g. React, TypeScript, Node.js (comma-separated)" {...field} />
+                    <TagInput 
+                      tags={field.value} 
+                      onChange={field.onChange} 
+                      placeholder="Add skills and press Enter"
+                    />
                   </FormControl>
+                  <FormDescription>
+                    Add skills one by one and press Enter after each
+                  </FormDescription>
                   <FormMessage />
                 </FormItem>
               )}

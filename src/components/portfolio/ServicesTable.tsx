@@ -123,7 +123,7 @@ export function ServicesTable({
                                 <TableCell>
                                   <Badge variant={
                                     tier.availability === 'ACTIVE' ? 'default' :
-                                    tier.availability === 'INACTIVE' ? 'outline' : 'secondary'
+                                    tier.availability === 'DISCONTINUED' ? 'outline' : 'secondary'
                                   }>
                                     {tier.availability}
                                   </Badge>

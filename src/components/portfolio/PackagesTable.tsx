@@ -20,9 +20,9 @@ export function PackagesTable({ packages, onEdit, onDelete }: PackagesTableProps
         <TableRow>
           <TableHead>Name</TableHead>
           <TableHead>Price</TableHead>
-          <TableHead>Discount</TableHead>
           <TableHead>Monthly Price</TableHead>
-          <TableHead>Availability</TableHead>
+          <TableHead>Discount</TableHead>
+          <TableHead>Status</TableHead>
           <TableHead>Created At</TableHead>
           <TableHead className="text-right">Actions</TableHead>
         </TableRow>
@@ -39,12 +39,12 @@ export function PackagesTable({ packages, onEdit, onDelete }: PackagesTableProps
             <TableRow key={pkg.id}>
               <TableCell className="font-medium">{pkg.name}</TableCell>
               <TableCell>{formatCurrency(pkg.price)}</TableCell>
-              <TableCell>{pkg.discount ? `${pkg.discount}%` : '-'}</TableCell>
-              <TableCell>{pkg.monthlyPrice ? formatCurrency(pkg.monthlyPrice) : '-'}</TableCell>
+              <TableCell>{pkg.monthlyPrice !== null ? formatCurrency(pkg.monthlyPrice) : '-'}</TableCell>
+              <TableCell>{pkg.discount !== null ? `${pkg.discount}%` : '-'}</TableCell>
               <TableCell>
                 <Badge variant={
                   pkg.availability === 'ACTIVE' ? 'default' :
-                  pkg.availability === 'INACTIVE' ? 'outline' : 'secondary'
+                  pkg.availability === 'DISCONTINUED' ? 'outline' : 'secondary'
                 }>
                   {pkg.availability}
                 </Badge>

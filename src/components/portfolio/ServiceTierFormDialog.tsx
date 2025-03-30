@@ -22,11 +22,11 @@ const formSchema = z.object({
   description: z.string().optional(),
   price: z.preprocess(
     (a) => (a === '' ? undefined : Number(a)),
-    z.number().min(0).required({ message: "Price is required" })
+    z.number().min(0, { message: "Price cannot be negative" })
   ),
   monthlyPrice: z.preprocess(
     (a) => (a === '' ? undefined : Number(a)),
-    z.number().min(0).optional()
+    z.number().min(0, { message: "Monthly price cannot be negative" }).optional()
   ),
   features: z.array(z.string()).default([]),
   availability: z.enum(['ACTIVE', 'DISCONTINUED', 'COMING_SOON']).default('ACTIVE'),

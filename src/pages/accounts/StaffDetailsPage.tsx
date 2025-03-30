@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronLeft, Edit, Calendar, Briefcase, Users, MessageSquare } from 'lucide-react';
@@ -266,12 +267,36 @@ const StaffDetailsPage = () => {
           <TabsContent value="tasks">
             <Card>
               <CardHeader>
-                <CardTitle>Tasks</CardTitle>
-                <CardDescription>Tasks assigned to this staff member</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Tasks</CardTitle>
+                    <CardDescription>Tasks assigned to this staff member</CardDescription>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-10 text-muted-foreground">
-                  No tasks assigned to this staff member yet
+                <div className="space-y-6">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium">Project Alpha Completion</p>
+                      <p className="text-sm text-muted-foreground">75%</p>
+                    </div>
+                    <Progress value={75} className="h-2" />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium">Client Onboarding</p>
+                      <p className="text-sm text-muted-foreground">50%</p>
+                    </div>
+                    <Progress value={50} className="h-2" />
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium">Bug Fixes</p>
+                      <p className="text-sm text-muted-foreground">90%</p>
+                    </div>
+                    <Progress value={90} className="h-2" />
+                  </div>
                 </div>
               </CardContent>
             </Card>

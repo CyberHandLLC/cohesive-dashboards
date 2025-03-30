@@ -1,24 +1,37 @@
 
-export type InvoiceStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED' | 'REFUNDED';
+export type InvoiceStatus = 'PENDING' | 'PAID' | 'OVERDUE' | 'CANCELLED';
 
-export type PaymentMethod = 'CREDIT_CARD' | 'BANK_TRANSFER' | 'PAYPAL' | 'CHECK' | 'CASH' | 'OTHER';
-
-export interface LineItem {
-  description: string;
-  quantity?: number;
-  price: number;
-}
+export type InvoicePaymentMethod = 'CREDIT_CARD' | 'BANK_TRANSFER' | 'PAYPAL';
 
 export interface Invoice {
   id: string;
+  invoiceNumber: string;
   clientId: string;
   amount: number;
   status: InvoiceStatus;
   dueDate: string;
-  invoiceNumber?: string;
-  paidAt?: string | null;
-  lineItems?: LineItem[] | null;
-  paymentMethod?: PaymentMethod | null;
+  paidAt: string | null;
   createdAt: string;
   updatedAt: string;
+  paymentMethod: InvoicePaymentMethod | null;
+  lineItems: Record<string, any> | null;
+}
+
+export interface CreateInvoiceData {
+  clientId: string;
+  amount: number;
+  dueDate: string;
+  status?: InvoiceStatus;
+  paymentMethod?: InvoicePaymentMethod;
+  invoiceNumber?: string;
+  lineItems?: Record<string, any>;
+}
+
+export interface UpdateInvoiceData {
+  amount?: number;
+  status?: InvoiceStatus;
+  dueDate?: string;
+  paymentMethod?: InvoicePaymentMethod;
+  lineItems?: Record<string, any>;
+  paidAt?: string | null;
 }

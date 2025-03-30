@@ -1,53 +1,65 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { 
-  AlertCircle, 
-  Search, 
-  Target, 
-  Phone, 
-  Mail, 
-  Calendar 
-} from 'lucide-react';
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { AlertCircle, Edit, Search, Trash2, UserCheck, UserPlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useClientId } from '@/hooks/useClientId';
 import { useToast } from '@/hooks/use-toast';
+import { useClientId } from '@/hooks/useClientId';
 import { formatDate } from '@/lib/formatters';
+import { Column, ResponsiveTable } from '@/components/ui/responsive-table';
+import { format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
 
-// Define lead status and source types
 type LeadStatus = 'NEW' | 'CONTACTED' | 'QUALIFIED' | 'CONVERTED' | 'LOST';
 type LeadSource = 'WEBSITE' | 'REFERRAL' | 'ADVERTISEMENT' | 'EVENT' | 'OTHER';
 
-const StaffLeadsPage = () => {
-  const [leads, setLeads] = useState<any[]>([]);
+interface Lead {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  status: LeadStatus;
+  leadSource: LeadSource;
+  notes: Record<string, any> | null;
+  followUpDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  assignedToId: string | null;
+  convertedClientId: string | null;
+  assignedTo?: {
+    firstName: string | null;
+    lastName: string | null;
+    email: string;
+  };
+}
+
+const StaffLeadsPage: React.FC = () => {
+  const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  
+  const { userId, staffId, isLoading: userIdLoading, error: userIdError } = useClientId();
+  const { toast } = useToast();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const leadIdParam = searchParams.get('leadId');
-  
-  const { userId, isLoading: userIdLoading, error: userIdError } = useClientId();
-  const { toast } = useToast();
   
   const breadcrumbs = [
     { label: 'Staff', href: '/staff' },
@@ -56,13 +68,13 @@ const StaffLeadsPage = () => {
   ];
 
   useEffect(() => {
-    if (userId) {
+    if (staffId) {
       fetchLeads();
     }
-  }, [userId, searchQuery, statusFilter, sourceFilter, leadIdParam]);
+  }, [staffId, searchQuery, statusFilter, sourceFilter, startDate, endDate, leadIdParam]);
 
   const fetchLeads = async () => {
-    if (!userId) return;
+    if (!staffId) return;
     
     setIsLoading(true);
     
@@ -74,23 +86,38 @@ const StaffLeadsPage = () => {
           name, 
           email, 
           phone, 
-          status,
-          leadSource,
-          notes,
-          followUpDate,
-          convertedClientId,
+          status, 
+          leadSource, 
+          notes, 
+          followUpDate, 
           createdAt,
-          updatedAt
+          updatedAt,
+          assignedToId,
+          convertedClientId,
+          assignedTo:User!assignedToId(firstName, lastName, email)
         `)
-        .eq('assignedToId', userId);
+        .eq('assignedToId', staffId);
       
-      // Apply filters with type casting for safety
+      // Apply filters
       if (statusFilter && statusFilter !== 'all') {
-        query = query.eq('status', statusFilter as LeadStatus);
+        query = query.eq('status', statusFilter);
       }
       
       if (sourceFilter && sourceFilter !== 'all') {
-        query = query.eq('leadSource', sourceFilter as LeadSource);
+        query = query.eq('leadSource', sourceFilter);
+      }
+      
+      if (startDate) {
+        const formattedStartDate = format(startDate, 'yyyy-MM-dd');
+        query = query.gte('createdAt', formattedStartDate);
+      }
+      
+      if (endDate) {
+        const formattedEndDate = format(endDate, 'yyyy-MM-dd');
+        // Add a day to include the end date fully
+        const nextDay = new Date(endDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        query = query.lt('createdAt', format(nextDay, 'yyyy-MM-dd'));
       }
       
       if (leadIdParam) {
@@ -98,19 +125,19 @@ const StaffLeadsPage = () => {
       }
       
       if (searchQuery) {
-        query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`);
+        query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%,phone.ilike.%${searchQuery}%`);
       }
       
-      const { data: leadData, error: leadError } = await query.order('createdAt', { ascending: false });
+      const { data, error } = await query.order('createdAt', { ascending: false });
       
-      if (leadError) throw leadError;
+      if (error) throw error;
       
-      setLeads(leadData || []);
+      setLeads(data as Lead[]);
     } catch (error) {
       console.error('Error fetching leads:', error);
       toast({
         title: "Error",
-        description: "Could not fetch lead data",
+        description: "Failed to fetch leads",
         variant: "destructive",
       });
     } finally {
@@ -118,63 +145,48 @@ const StaffLeadsPage = () => {
     }
   };
 
-  const updateLeadStatus = async (leadId: string, newStatus: LeadStatus) => {
-    try {
-      const { error } = await supabase
-        .from('Lead')
-        .update({ status: newStatus })
-        .eq('id', leadId);
-        
-      if (error) throw error;
-      
-      toast({
-        title: "Lead Updated",
-        description: `Lead status changed to ${newStatus}`,
-      });
-      
-      // Update the local state
-      setLeads(leads.map(lead => 
-        lead.id === leadId ? { ...lead, status: newStatus } : lead
-      ));
-    } catch (error) {
-      console.error('Error updating lead status:', error);
-      toast({
-        title: "Error",
-        description: "Could not update lead status",
-        variant: "destructive",
-      });
-    }
-  };
-
   const resetFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
     setSourceFilter('all');
+    setStartDate(undefined);
+    setEndDate(undefined);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'CONVERTED':
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-green-100 text-green-800">
-          Converted
-        </span>;
-      case 'LOST':
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-800">
-          Lost
-        </span>;
-      case 'QUALIFIED':
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-blue-100 text-blue-800">
-          Qualified
-        </span>;
-      case 'CONTACTED':
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-yellow-100 text-yellow-800">
-          Contacted
-        </span>;
-      default: // NEW
-        return <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md bg-purple-100 text-purple-800">
-          New
-        </span>;
-    }
+  const handleEdit = (lead: Lead) => {
+    // Navigate to the lead edit page or open a modal
+    console.log('Edit lead:', lead);
+    toast({
+      title: "Coming Soon",
+      description: "Lead editing will be available soon",
+    });
+  };
+
+  const handleDelete = (leadId: string) => {
+    // Delete the lead or open a confirmation dialog
+    console.log('Delete lead:', leadId);
+    toast({
+      title: "Coming Soon",
+      description: "Lead deletion will be available soon",
+    });
+  };
+
+  const handleConvert = (lead: Lead) => {
+    // Convert lead to client or open a dialog
+    console.log('Convert lead to client:', lead);
+    toast({
+      title: "Coming Soon",
+      description: "Lead conversion will be available soon",
+    });
+  };
+
+  const handleAssign = (lead: Lead) => {
+    // Open a dialog to assign the lead to another staff member
+    console.log('Assign lead:', lead);
+    toast({
+      title: "Coming Soon",
+      description: "Lead assignment will be available soon",
+    });
   };
 
   // Display loading or error state if needed
@@ -201,13 +213,136 @@ const StaffLeadsPage = () => {
           <AlertCircle className="h-12 w-12 text-destructive" />
           <h2 className="text-xl font-semibold">Authentication Error</h2>
           <p>{userIdError}</p>
-          <Button asChild variant="outline">
-            <Link to="/login">Log in again</Link>
-          </Button>
         </div>
       </DashboardLayout>
     );
   }
+
+  if (!staffId) {
+    return (
+      <DashboardLayout 
+        breadcrumbs={breadcrumbs}
+        role="staff"
+      >
+        <div className="flex flex-col justify-center items-center h-[60vh] space-y-4">
+          <AlertCircle className="h-12 w-12 text-destructive" />
+          <h2 className="text-xl font-semibold">Staff Record Not Found</h2>
+          <p>Your user account is not associated with a staff record</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Define columns for the responsive table
+  const columns: Column<Lead>[] = [
+    {
+      id: 'name',
+      header: 'Name',
+      cell: (lead) => <span className="font-medium">{lead.name}</span>
+    },
+    {
+      id: 'email',
+      header: 'Email',
+      cell: (lead) => lead.email,
+      responsive: true
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (lead) => {
+        const getStatusBadgeClass = () => {
+          switch (lead.status) {
+            case 'NEW': return 'bg-blue-100 text-blue-800';
+            case 'CONTACTED': return 'bg-indigo-100 text-indigo-800';
+            case 'QUALIFIED': return 'bg-green-100 text-green-800';
+            case 'CONVERTED': return 'bg-purple-100 text-purple-800';
+            case 'LOST': return 'bg-red-100 text-red-800';
+            default: return 'bg-gray-100 text-gray-800';
+          }
+        };
+        
+        return (
+          <Badge variant="outline" className={getStatusBadgeClass()}>
+            {lead.status}
+          </Badge>
+        );
+      }
+    },
+    {
+      id: 'source',
+      header: 'Source',
+      cell: (lead) => {
+        const getSourceBadgeClass = () => {
+          switch (lead.leadSource) {
+            case 'WEBSITE': return 'bg-green-50 text-green-700';
+            case 'REFERRAL': return 'bg-blue-50 text-blue-700';
+            case 'ADVERTISEMENT': return 'bg-purple-50 text-purple-700';
+            case 'EVENT': return 'bg-orange-50 text-orange-700';
+            default: return 'bg-gray-50 text-gray-700';
+          }
+        };
+        
+        return (
+          <Badge variant="outline" className={getSourceBadgeClass()}>
+            {lead.leadSource}
+          </Badge>
+        );
+      },
+      responsive: true
+    },
+    {
+      id: 'followUpDate',
+      header: 'Follow-Up',
+      cell: (lead) => formatDate(lead.followUpDate) || '-'
+    },
+    {
+      id: 'createdAt',
+      header: 'Created',
+      cell: (lead) => formatDate(lead.createdAt),
+      responsive: true
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: (lead) => (
+        <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+          {lead.status !== 'CONVERTED' && (
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => handleConvert(lead)}
+              title="Convert to client"
+            >
+              <UserCheck className="h-4 w-4" />
+            </Button>
+          )}
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => handleAssign(lead)}
+            title="Assign staff"
+          >
+            <UserPlus className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleEdit(lead)}
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => handleDelete(lead.id)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+      className: "text-right"
+    }
+  ];
 
   return (
     <DashboardLayout
@@ -223,19 +358,22 @@ const StaffLeadsPage = () => {
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search leads..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+            <div className="flex flex-col space-y-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search leads by name, email..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
               </div>
-              <div className="flex flex-wrap gap-2">
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger>
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -247,8 +385,9 @@ const StaffLeadsPage = () => {
                     <SelectItem value="LOST">Lost</SelectItem>
                   </SelectContent>
                 </Select>
+                
                 <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger>
                     <SelectValue placeholder="Source" />
                   </SelectTrigger>
                   <SelectContent>
@@ -260,96 +399,73 @@ const StaffLeadsPage = () => {
                     <SelectItem value="OTHER">Other</SelectItem>
                   </SelectContent>
                 </Select>
-                {(searchQuery || statusFilter !== 'all' || sourceFilter !== 'all') && (
-                  <Button variant="outline" onClick={resetFilters}>
-                    Reset
-                  </Button>
-                )}
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      {startDate ? format(startDate, 'PPP') : "Start Date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={startDate}
+                      onSelect={setStartDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      {endDate ? format(endDate, 'PPP') : "End Date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={endDate}
+                      onSelect={setEndDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
+              
+              {(searchQuery || statusFilter !== 'all' || sourceFilter !== 'all' || startDate || endDate) && (
+                <div className="flex justify-end">
+                  <Button variant="outline" onClick={resetFilters}>
+                    Reset Filters
+                  </Button>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
         
-        {/* Lead List */}
+        {/* Leads List */}
         <Card>
           <CardHeader>
             <CardTitle>Leads</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <p>Loading leads...</p>
-              </div>
-            ) : leads.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead className="hidden md:table-cell">Email</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Source</TableHead>
-                      <TableHead className="hidden lg:table-cell">Follow-up</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {leads.map((lead) => (
-                      <TableRow key={lead.id}>
-                        <TableCell className="font-medium">{lead.name}</TableCell>
-                        <TableCell className="hidden md:table-cell">{lead.email}</TableCell>
-                        <TableCell>{getStatusBadge(lead.status)}</TableCell>
-                        <TableCell>{lead.leadSource || "Unknown"}</TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {lead.followUpDate ? formatDate(lead.followUpDate) : "Not scheduled"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            {(lead.status !== 'CONVERTED' && lead.status !== 'LOST') && (
-                              <Button variant="outline" size="icon" title="Schedule Follow-up">
-                                <Calendar className="h-4 w-4" />
-                              </Button>
-                            )}
-                            <Button variant="outline" size="icon" title="Email Lead" asChild>
-                              <a href={`mailto:${lead.email}`}>
-                                <Mail className="h-4 w-4" />
-                              </a>
-                            </Button>
-                            {lead.phone && (
-                              <Button variant="outline" size="icon" title="Call Lead" asChild>
-                                <a href={`tel:${lead.phone}`}>
-                                  <Phone className="h-4 w-4" />
-                                </a>
-                              </Button>
-                            )}
-                            <Button variant="default" size="sm" asChild>
-                              <Link to={`/staff/accounts/leads/${lead.id}`}>
-                                View
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="rounded-full bg-primary/10 p-3 mb-4">
-                  <Target className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-medium text-xl mb-1">No leads found</h3>
-                <p className="text-muted-foreground text-center max-w-sm">
-                  There are no leads assigned to you or none match your current filters.
-                </p>
-                {(searchQuery || statusFilter !== 'all' || sourceFilter !== 'all') && (
-                  <Button variant="outline" onClick={resetFilters} className="mt-4">
-                    Clear filters
-                  </Button>
-                )}
-              </div>
-            )}
+            <ResponsiveTable
+              columns={columns}
+              data={leads}
+              keyField="id"
+              isLoading={isLoading}
+              emptyMessage="No leads found"
+              searchQuery={searchQuery}
+              onRowClick={(lead) => {
+                // Handle row click, maybe navigate to lead details
+                console.log('Lead clicked:', lead);
+                toast({
+                  title: "Lead Selected",
+                  description: `You clicked on ${lead.name}`,
+                });
+              }}
+            />
           </CardContent>
         </Card>
       </div>

@@ -12,25 +12,29 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { AlertCircle, Search, FileText, Mail, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useClientId } from '@/hooks/useClientId';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/formatters';
+import { Column, ResponsiveTable } from '@/components/ui/responsive-table';
 
 // Define ClientStatus type to match database
 type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'PAST';
 
+interface Client {
+  id: string;
+  companyName: string;
+  industry: string | null;
+  websiteUrl: string | null;
+  status: ClientStatus;
+  notes: string | null;
+  createdAt: string;
+  openTickets?: number;
+}
+
 const StaffClientsPage = () => {
-  const [clients, setClients] = useState<any[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -169,6 +173,81 @@ const StaffClientsPage = () => {
     );
   }
 
+  // Define columns for the responsive table
+  const columns: Column<Client>[] = [
+    {
+      id: 'companyName',
+      header: 'Company Name',
+      cell: (client) => <span className="font-medium">{client.companyName}</span>
+    },
+    {
+      id: 'industry',
+      header: 'Industry',
+      cell: (client) => client.industry || <span className="text-muted-foreground">Not specified</span>,
+      responsive: true
+    },
+    {
+      id: 'status',
+      header: 'Status',
+      cell: (client) => (
+        <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
+          client.status === 'ACTIVE' 
+            ? 'bg-green-100 text-green-800' 
+            : client.status === 'INACTIVE'
+              ? 'bg-amber-100 text-amber-800'
+              : 'bg-gray-100 text-gray-800'
+        }`}>
+          {client.status}
+        </span>
+      )
+    },
+    {
+      id: 'openTickets',
+      header: 'Open Tickets',
+      cell: (client) => (
+        client.openTickets && client.openTickets > 0 ? (
+          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
+            {client.openTickets}
+          </span>
+        ) : (
+          <span className="text-muted-foreground">None</span>
+        )
+      )
+    },
+    {
+      id: 'createdAt',
+      header: 'Created',
+      cell: (client) => formatDate(client.createdAt),
+      responsive: true
+    },
+    {
+      id: 'actions',
+      header: 'Actions',
+      cell: (client) => (
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" size="icon" asChild>
+            <Link to={`/staff/accounts/support?clientId=${client.id}`}>
+              <FileText className="h-4 w-4" />
+            </Link>
+          </Button>
+          {client.websiteUrl && (
+            <Button variant="outline" size="icon" asChild>
+              <a href={`mailto:${client.contactEmail}`} onClick={(e) => e.stopPropagation()}>
+                <Mail className="h-4 w-4" />
+              </a>
+            </Button>
+          )}
+          <Button variant="default" size="sm" asChild>
+            <Link to={`/staff/accounts/clients/${client.id}`}>
+              View
+            </Link>
+          </Button>
+        </div>
+      ),
+      className: "text-right"
+    }
+  ];
+
   return (
     <DashboardLayout
       breadcrumbs={breadcrumbs}
@@ -221,93 +300,17 @@ const StaffClientsPage = () => {
             <CardTitle>Clients</CardTitle>
           </CardHeader>
           <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <p>Loading clients...</p>
-              </div>
-            ) : clients.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Company Name</TableHead>
-                      <TableHead className="hidden md:table-cell">Industry</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Open Tickets</TableHead>
-                      <TableHead className="hidden lg:table-cell">Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {clients.map((client) => (
-                      <TableRow key={client.id}>
-                        <TableCell className="font-medium">{client.companyName}</TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          {client.industry || <span className="text-muted-foreground">Not specified</span>}
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full ${
-                            client.status === 'ACTIVE' 
-                              ? 'bg-green-100 text-green-800' 
-                              : client.status === 'INACTIVE'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-gray-100 text-gray-800'
-                          }`}>
-                            {client.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {client.openTickets > 0 ? (
-                            <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">
-                              {client.openTickets}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">None</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          {formatDate(client.createdAt)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button variant="outline" size="icon" asChild>
-                              <Link to={`/staff/accounts/support?clientId=${client.id}`}>
-                                <FileText className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button variant="outline" size="icon" asChild>
-                              <a href={`mailto:${client.contactEmail}`}>
-                                <Mail className="h-4 w-4" />
-                              </a>
-                            </Button>
-                            <Button variant="default" size="sm" asChild>
-                              <Link to={`/staff/accounts/clients/${client.id}`}>
-                                View
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="rounded-full bg-primary/10 p-3 mb-4">
-                  <AlertCircle className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="font-medium text-xl mb-1">No clients found</h3>
-                <p className="text-muted-foreground text-center max-w-sm">
-                  There are no clients assigned to you or none match your current filters.
-                </p>
-                {(searchQuery || statusFilter !== 'all') && (
-                  <Button variant="outline" onClick={resetFilters} className="mt-4">
-                    Clear filters
-                  </Button>
-                )}
-              </div>
-            )}
+            <ResponsiveTable
+              columns={columns}
+              data={clients}
+              keyField="id"
+              isLoading={isLoading}
+              emptyMessage="No clients found"
+              searchQuery={searchQuery}
+              onRowClick={(client) => {
+                window.location.href = `/staff/accounts/clients/${client.id}`;
+              }}
+            />
           </CardContent>
         </Card>
       </div>

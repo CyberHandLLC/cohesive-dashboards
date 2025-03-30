@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,6 +27,7 @@ import { DateRange } from 'react-day-picker';
 import { subMonths } from 'date-fns';
 import ContentFilters from '@/components/admin/content/ContentFilters';
 import ContentForm from '@/components/admin/content/ContentForm';
+import { ContentStatus } from '@/types/content';
 
 type ContentType = "BLOG_POST" | "RESOURCE" | "FAQ" | "NEWS" | "SOCIAL_MEDIA_POST";
 type ContentStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
@@ -431,7 +431,7 @@ const ContentManagementPage = () => {
                     searchTerm={searchQuery}
                     setSearchTerm={setSearchQuery}
                     statusFilter={statusFilter}
-                    setStatusFilter={setStatusFilter}
+                    setStatusFilter={(value) => setStatusFilter(value as ContentStatus)}
                     clientFilter={clientFilter}
                     setClientFilter={setClientFilter}
                     clients={clients}

@@ -1,108 +1,72 @@
 
 import { useState, useEffect } from 'react';
+import { useRole } from '@/lib/hooks/use-role';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
-export const useClientId = () => {
+interface ClientIdData {
+  userId: string | null;
+  clientId: string | null;
+  staffId: string | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export function useClientId(): ClientIdData {
+  const { userId, role } = useRole();
   const [clientId, setClientId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [staffId, setStaffId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      setIsLoading(true);
+    async function fetchIdData() {
+      if (!userId) {
+        setIsLoading(false);
+        setError('No user ID found');
+        return;
+      }
+
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          setError('You must be logged in to view this page');
-          toast({
-            title: "Authentication Error",
-            description: "You must be logged in to view this page",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
+        if (role === 'CLIENT') {
+          // Fetch clientId for client role
+          const { data: userData, error: userError } = await supabase
+            .from('User')
+            .select('clientId')
+            .eq('id', userId)
+            .single();
 
-        setUserId(user.id);
-        
-        // Get user role and associated IDs
-        const { data: userData, error: userError } = await supabase
-          .from('User')
-          .select('role, clientId')
-          .eq('id', user.id)
-          .single();
-
-        if (userError) {
-          console.error('Error fetching user data:', userError);
-          setError('Could not fetch user information');
-          toast({
-            title: "Error",
-            description: "Could not fetch user information",
-            variant: "destructive",
-          });
-          setIsLoading(false);
-          return;
-        }
-
-        setUserRole(userData.role);
-
-        // If client role, set clientId
-        if (userData.role === 'CLIENT') {
-          if (!userData?.clientId) {
-            setError('User is not associated with a client');
-            toast({
-              title: "Access Error",
-              description: "Your user account is not associated with a client",
-              variant: "destructive",
-            });
-            setIsLoading(false);
-            return;
-          }
-          setClientId(userData.clientId);
-        }
-
-        // If staff role, get staff ID
-        if (userData.role === 'STAFF') {
+          if (userError) throw new Error('Could not fetch client information');
+          
+          setClientId(userData?.clientId || null);
+        } else if (role === 'STAFF') {
+          // Fetch staffId for staff role
           const { data: staffData, error: staffError } = await supabase
             .from('Staff')
             .select('id')
-            .eq('userId', user.id)
+            .eq('userId', userId)
             .single();
 
           if (staffError) {
-            console.error('Error fetching staff ID:', staffError);
-            setError('Could not fetch staff information');
-            toast({
-              title: "Error", 
-              description: "Could not fetch staff information",
-              variant: "destructive",
-            });
-          } else if (staffData) {
-            setStaffId(staffData.id);
+            console.error('Error fetching staff record:', staffError);
+            // Don't throw an error as the user might be staff without a staff record
+          } else {
+            setStaffId(staffData?.id || null);
           }
         }
-
-      } catch (err) {
-        console.error("Error fetching user data:", err);
-        setError('Failed to load user information');
-        toast({
-          title: "Error",
-          description: "Failed to load user information",
-          variant: "destructive",
-        });
-      } finally {
+        setIsLoading(false);
+      } catch (err: any) {
+        console.error('Error in useClientId:', err);
+        setError(err.message || 'An unknown error occurred');
         setIsLoading(false);
       }
-    };
+    }
 
-    fetchUserData();
-  }, [toast]);
+    if (userId) {
+      fetchIdData();
+    } else {
+      setIsLoading(false);
+    }
+  }, [userId, role]);
 
-  return { clientId, userId, staffId, userRole, isLoading, error };
-};
+  return { userId, clientId, staffId, isLoading, error };
+}

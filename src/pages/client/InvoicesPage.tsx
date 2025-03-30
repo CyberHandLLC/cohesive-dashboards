@@ -1,18 +1,9 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Eye, Search, AlertCircle } from 'lucide-react';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -20,118 +11,87 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { formatCurrency, formatDate } from '@/lib/formatters';
-import InvoiceStatusBadge from '@/components/invoices/InvoiceStatusBadge';
-import InvoiceDetailsDialog from '@/components/invoices/InvoiceDetailsDialog';
+import { AlertCircle, Search } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { Invoice, InvoiceStatus } from '@/types/invoice';
-import { useClientId } from '@/hooks/useClientId';
 import { useToast } from '@/hooks/use-toast';
+import { useClientId } from '@/hooks/useClientId';
+import { formatDate, formatCurrency } from '@/lib/formatters';
+import { InvoiceStatus } from '@/types/invoice';
+import ServicesList from '@/components/client/ServicesList';
+import { ClientService } from '@/types/client';
 
 const ClientInvoicesPage = () => {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [services, setServices] = useState<ClientService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
-  const [totalOutstanding, setTotalOutstanding] = useState(0);
-  const [totalPaid, setTotalPaid] = useState(0);
-  const [clientInfo, setClientInfo] = useState<{ id: string; companyName: string } | null>(null);
-  const { clientId, isLoading: clientIdLoading, error: clientIdError } = useClientId();
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchParams] = useSearchParams();
+  const clientIdParam = searchParams.get('clientId');
+  
+  const { userId, clientId, isLoading: userIdLoading, error: userIdError } = useClientId();
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   const breadcrumbs = [
     { label: 'Client', href: '/client' },
     { label: 'Accounts', href: '/client/accounts' },
-    { label: 'Invoices' }
+    { label: 'Services' }
   ];
 
   useEffect(() => {
-    // Only fetch client info if we have a clientId
     if (clientId) {
-      fetchClientInfo(clientId);
+      fetchServices();
     }
-  }, [clientId]);
+  }, [clientId, searchQuery, statusFilter, clientIdParam]);
 
-  const fetchClientInfo = async (id: string) => {
-    try {
-      // Get client info
-      const { data: clientData, error: clientError } = await supabase
-        .from('Client')
-        .select('id, companyName')
-        .eq('id', id)
-        .single();
-      
-      if (clientError) {
-        console.error('Error fetching client details:', clientError);
-        toast({
-          title: "Error",
-          description: "Could not fetch client details",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      setClientInfo(clientData);
-      fetchInvoices(clientData.id);
-    } catch (error) {
-      console.error('Error in client fetch operation:', error);
-      toast({
-        title: "Error",
-        description: "Could not fetch client information",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const fetchInvoices = async (clientId: string) => {
+  const fetchServices = async () => {
+    if (!clientId) return;
+    
     setIsLoading(true);
+    
     try {
       let query = supabase
-        .from('Invoice')
-        .select('*')
-        .eq('clientId', clientId)
-        .order('createdAt', { ascending: false });
+        .from('ClientService')
+        .select(`
+          id, 
+          clientId, 
+          serviceId, 
+          status, 
+          price, 
+          startDate, 
+          endDate, 
+          createdAt,
+          updatedAt,
+          service: Service (
+            name, 
+            description, 
+            price, 
+            monthlyPrice, 
+            features, 
+            customFields
+          )
+        `)
+        .eq('clientId', clientId);
       
-      if (statusFilter) {
-        // Cast statusFilter to InvoiceStatus type to ensure compatibility
-        query = query.eq('status', statusFilter as InvoiceStatus);
+      // Apply filters
+      if (statusFilter && statusFilter !== 'all') {
+        query = query.eq('status', statusFilter);
       }
       
-      const { data, error } = await query;
+      if (searchQuery) {
+        query = query.or(`service.name.ilike.%${searchQuery}%,service.description.ilike.%${searchQuery}%`);
+      }
+      
+      const { data, error } = await query.order('createdAt', { ascending: false });
       
       if (error) throw error;
       
-      // Calculate total outstanding and paid amounts
-      const outstandingAmount = data
-        .filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE')
-        .reduce((sum, inv) => sum + inv.amount, 0);
-      
-      const paidAmount = data
-        .filter(inv => inv.status === 'PAID')
-        .reduce((sum, inv) => sum + inv.amount, 0);
-      
-      setTotalOutstanding(outstandingAmount);
-      setTotalPaid(paidAmount);
-      
-      // Filter by search term if needed
-      if (searchTerm) {
-        const term = searchTerm.toLowerCase();
-        const filtered = data.filter(inv => 
-          (inv.invoiceNumber?.toLowerCase().includes(term) || false) ||
-          inv.status.toLowerCase().includes(term)
-        );
-        // Cast to Invoice[] since we're handling compatible types
-        setInvoices(filtered as unknown as Invoice[]);
-      } else {
-        // Cast to Invoice[] since we're handling compatible types
-        setInvoices(data as unknown as Invoice[]);
-      }
+      setServices(data as ClientService[]);
     } catch (error) {
-      console.error('Error fetching invoices:', error);
+      console.error('Error fetching services:', error);
       toast({
         title: "Error",
-        description: "Could not fetch invoices",
+        description: "Could not fetch service data",
         variant: "destructive",
       });
     } finally {
@@ -139,32 +99,59 @@ const ClientInvoicesPage = () => {
     }
   };
 
-  useEffect(() => {
-    if (clientInfo?.id) {
-      fetchInvoices(clientInfo.id);
-    }
-  }, [statusFilter, searchTerm, clientInfo]);
-
   const resetFilters = () => {
-    setSearchTerm('');
-    setStatusFilter(null);
+    setSearchQuery('');
+    setStatusFilter('all');
   };
 
-  // Display loading or error state if clientId isn't available yet
-  if (clientIdLoading) {
+  const filterInvoices = (invoices: ClientService[]) => {
+    return invoices.filter(invoice => {
+      // Status filter
+      if (statusFilter !== 'all' && invoice.status !== statusFilter) {
+        return false;
+      }
+      
+      // Search filter
+      if (searchQuery) {
+        const searchTermLower = searchQuery.toLowerCase();
+        if (
+          !invoice.service?.name?.toLowerCase().includes(searchTermLower) &&
+          !invoice.service?.description?.toLowerCase().includes(searchTermLower)
+        ) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  };
+
+  const filteredInvoices = filterInvoices(services);
+
+  const handleViewDetails = (service: ClientService) => {
+    // Navigate to the service details page or open a modal
+    console.log('View service details:', service);
+    toast({
+      title: "Coming Soon",
+      description: "Service details will be available soon",
+    });
+  };
+
+  // Display loading or error state if needed
+  if (userIdLoading) {
     return (
       <DashboardLayout 
         breadcrumbs={breadcrumbs}
         role="client"
       >
         <div className="flex justify-center items-center h-[60vh]">
-          <p>Loading client information...</p>
+          <p>Loading user information...</p>
         </div>
       </DashboardLayout>
     );
   }
 
-  if (clientIdError) {
+  if (userIdError) {
     return (
       <DashboardLayout 
         breadcrumbs={breadcrumbs}
@@ -173,7 +160,7 @@ const ClientInvoicesPage = () => {
         <div className="flex flex-col justify-center items-center h-[60vh] space-y-4">
           <AlertCircle className="h-12 w-12 text-destructive" />
           <h2 className="text-xl font-semibold">Authentication Error</h2>
-          <p>{clientIdError}</p>
+          <p>{userIdError}</p>
           <Button asChild variant="outline">
             <a href="/login">Log in again</a>
           </Button>
@@ -182,147 +169,84 @@ const ClientInvoicesPage = () => {
     );
   }
 
+  if (!clientId) {
+    return (
+      <DashboardLayout 
+        breadcrumbs={breadcrumbs}
+        role="client"
+      >
+        <div className="flex flex-col justify-center items-center h-[60vh] space-y-4">
+          <AlertCircle className="h-12 w-12 text-destructive" />
+          <h2 className="text-xl font-semibold">Client Record Not Found</h2>
+          <p>Your user account is not associated with a client record</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   return (
-    <DashboardLayout 
+    <DashboardLayout
       breadcrumbs={breadcrumbs}
       role="client"
+      title="Service Management"
     >
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">My Invoices</h1>
+          <h1 className="text-2xl font-bold">Assigned Services</h1>
         </div>
         
-        {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-amber-600">
-                {formatCurrency(totalOutstanding)}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(totalPaid)}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-        
+        {/* Filters */}
         <Card>
-          <CardHeader>
-            <CardTitle>Invoice History</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {/* Search and Filter */}
-            <div className="flex flex-col md:flex-row gap-4 mb-6">
+          <CardContent className="pt-6">
+            <div className="flex flex-col md:flex-row gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search invoices..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search services by name, description..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-10"
                 />
               </div>
-              <div className="w-full md:w-[200px]">
-                <Select
-                  value={statusFilter || 'all-statuses'}
-                  onValueChange={(value) => setStatusFilter(value === 'all-statuses' ? null : value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by status" />
+              <div className="flex gap-2">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all-statuses">All Statuses</SelectItem>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="ACTIVE">Active</SelectItem>
                     <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="PAID">Paid</SelectItem>
-                    <SelectItem value="OVERDUE">Overdue</SelectItem>
+                    <SelectItem value="EXPIRED">Expired</SelectItem>
+                    <SelectItem value="SUSPENDED">Suspended</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              {(searchTerm || statusFilter) && (
-                <Button variant="ghost" onClick={resetFilters} className="md:self-start">
-                  Reset
-                </Button>
-              )}
-            </div>
-            
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <p>Loading invoices...</p>
-              </div>
-            ) : invoices.length > 0 ? (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice #</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Due Date</TableHead>
-                      <TableHead>Created Date</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {invoices.map((invoice) => (
-                      <TableRow key={invoice.id}>
-                        <TableCell>{invoice.invoiceNumber || invoice.id.slice(0, 8)}</TableCell>
-                        <TableCell>{formatCurrency(invoice.amount)}</TableCell>
-                        <TableCell>
-                          <InvoiceStatusBadge status={invoice.status} />
-                        </TableCell>
-                        <TableCell>{formatDate(invoice.dueDate)}</TableCell>
-                        <TableCell>{formatDate(invoice.createdAt)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => setViewingInvoice(invoice)}
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center py-8 text-center">
-                <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-muted-foreground">No invoices found</p>
-                {(searchTerm || statusFilter) && (
-                  <Button 
-                    variant="outline" 
-                    onClick={resetFilters} 
-                    className="mt-4"
-                  >
+                {(searchQuery || statusFilter !== 'all') && (
+                  <Button variant="outline" onClick={resetFilters}>
                     Reset Filters
                   </Button>
                 )}
               </div>
-            )}
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Service List */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Services</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ServicesList
+              services={filteredInvoices}
+              isLoading={isLoading}
+              onViewDetails={handleViewDetails}
+              onResetFilters={resetFilters}
+              hasFilters={searchQuery !== '' || statusFilter !== 'all'}
+            />
           </CardContent>
         </Card>
       </div>
-
-      {/* Invoice Details Dialog */}
-      <InvoiceDetailsDialog
-        invoice={viewingInvoice}
-        open={!!viewingInvoice}
-        onOpenChange={(open) => !open && setViewingInvoice(null)}
-        clientName={clientInfo?.companyName}
-      />
     </DashboardLayout>
   );
 };

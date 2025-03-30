@@ -116,7 +116,7 @@ const StaffDetailsPage = () => {
         
         if (data) {
           setStaffMember(data as StaffMember);
-          await fetchRelatedData(data.userId);
+          await fetchRelatedData(data.userId, data.id);
         }
       } catch (error: any) {
         console.error('Error fetching staff details:', error);
@@ -133,7 +133,7 @@ const StaffDetailsPage = () => {
     fetchStaffDetails();
   }, [id, toast]);
 
-  const fetchRelatedData = async (userId: string) => {
+  const fetchRelatedData = async (userId: string, staffId: string) => {
     setIsLoadingRelations(true);
     try {
       // Fetch clients where this staff member is the account manager
@@ -149,9 +149,9 @@ const StaffDetailsPage = () => {
       setAssignedClients(clientsData || []);
       
       // Fetch support tickets assigned to this staff member
-      console.log('Fetching support tickets for staff ID:', id);
+      console.log('Fetching support tickets for staff ID:', staffId);
       
-      // Important fix: We need to query by staffId which is the Staff table id, not the userId
+      // Fixed query: Use staffId (Staff table primary key) instead of userId
       const { data: ticketsData, error: ticketsError } = await supabase
         .from('SupportTicket')
         .select(`
@@ -164,7 +164,7 @@ const StaffDetailsPage = () => {
             companyName
           )
         `)
-        .eq('staffId', id);
+        .eq('staffId', staffId);
       
       if (ticketsError) {
         console.error('Error fetching support tickets:', ticketsError);

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
@@ -39,7 +40,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 type UserStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING' | 'SUSPENDED';
 
-interface User extends UserType {
+// Fix the interface to make emailVerified optional to match UserType
+interface User extends Omit<UserType, 'emailVerified'> {
   emailVerified: boolean;
 }
 

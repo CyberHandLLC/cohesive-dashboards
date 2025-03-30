@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
   Card, 
   CardContent, 
@@ -11,45 +10,17 @@ import {
   CardTitle,
   CardDescription
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, Plus, Eye, Edit, Trash2, Filter, BarChart2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useForm } from 'react-hook-form';
 import { useStaffTasks } from '@/hooks/staff/useStaffTasks';
+
+// Import the new components
+import StaffPerformanceCards from '@/components/staff/StaffPerformanceCards';
+import StaffList from '@/components/staff/StaffList';
+import StaffAddDialog from '@/components/staff/StaffAddDialog';
+import StaffEditDialog from '@/components/staff/StaffEditDialog';
+import StaffSearchBar from '@/components/staff/StaffSearchBar';
 import TaskAssignmentDialog from '@/components/staff/TaskAssignmentDialog';
 import StaffPerformanceSummary from '@/components/staff/StaffPerformanceSummary';
 
@@ -88,17 +59,6 @@ const StaffManagementPage = () => {
     { label: 'Accounts', href: '/admin/accounts' },
     { label: 'Staff Management' }
   ];
-
-  const form = useForm({
-    defaultValues: {
-      userId: '',
-      title: '',
-      department: '',
-      bio: '',
-      skills: '',
-      hireDate: '',
-    },
-  });
 
   useEffect(() => {
     fetchStaffMembers();
@@ -251,7 +211,6 @@ const StaffManagementPage = () => {
       });
       
       setIsAddDialogOpen(false);
-      form.reset();
       fetchStaffMembers();
     } catch (error: any) {
       console.error('Error adding staff member:', error);
@@ -292,7 +251,6 @@ const StaffManagementPage = () => {
       
       setIsEditDialogOpen(false);
       setSelectedStaff(null);
-      form.reset();
       fetchStaffMembers();
     } catch (error: any) {
       console.error('Error updating staff member:', error);
@@ -352,27 +310,11 @@ const StaffManagementPage = () => {
 
   const openAddDialog = () => {
     fetchAvailableUsers();
-    form.reset({
-      userId: '',
-      title: '',
-      department: '',
-      bio: '',
-      skills: '',
-      hireDate: '',
-    });
     setIsAddDialogOpen(true);
   };
 
   const openEditDialog = (staff: StaffMember) => {
     setSelectedStaff(staff);
-    form.reset({
-      userId: staff.userId,
-      title: staff.title || '',
-      department: staff.department || '',
-      bio: staff.bio || '',
-      skills: staff.skills ? staff.skills.join(', ') : '',
-      hireDate: staff.hireDate ? new Date(staff.hireDate).toISOString().split('T')[0] : '',
-    });
     setIsEditDialogOpen(true);
   };
 
@@ -381,12 +323,9 @@ const StaffManagementPage = () => {
     setIsAssignTaskDialogOpen(true);
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      return new Date(dateString).toLocaleDateString();
-    } catch (error) {
-      return 'Invalid date';
-    }
+  const handlePerformanceStaffSelect = (staffId: string) => {
+    const staffMember = staffMembers.find(s => s.id === staffId);
+    if (staffMember) setSelectedStaff(staffMember);
   };
 
   return (
@@ -395,29 +334,12 @@ const StaffManagementPage = () => {
       role="admin"
     >
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-          <div className="relative flex-1 w-full sm:max-w-xs">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search staff members..."
-              className="pl-9"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" size="icon">
-              <Filter className="h-4 w-4" />
-            </Button>
-            <Button onClick={() => setIsAssignTaskDialogOpen(true)} variant="outline">
-              <Plus className="mr-2 h-4 w-4" /> Assign Task
-            </Button>
-            <Button onClick={openAddDialog}>
-              <Plus className="mr-2 h-4 w-4" /> Add Staff
-            </Button>
-          </div>
-        </div>
+        <StaffSearchBar 
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onAddClick={openAddDialog}
+          onAssignTaskClick={() => setIsAssignTaskDialogOpen(true)}
+        />
         
         <Tabs defaultValue="staff_list">
           <TabsList>
@@ -431,100 +353,15 @@ const StaffManagementPage = () => {
                 <CardTitle className="text-lg">Staff Management</CardTitle>
               </CardHeader>
               <CardContent>
-                {isLoading ? (
-                  <div className="flex justify-center py-8">
-                    <p>Loading staff members...</p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Email</TableHead>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Department</TableHead>
-                          <TableHead>Hire Date</TableHead>
-                          <TableHead>Skills</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {staffMembers.length > 0 ? (
-                          staffMembers.map((staff) => (
-                            <TableRow 
-                              key={staff.id} 
-                              className="cursor-pointer hover:bg-muted/50"
-                              onClick={() => handleViewStaff(staff)}
-                            >
-                              <TableCell>
-                                {staff.user.firstName && staff.user.lastName
-                                  ? `${staff.user.firstName} ${staff.user.lastName}`
-                                  : staff.user.firstName || staff.user.lastName || 'No name provided'}
-                              </TableCell>
-                              <TableCell>{staff.user.email}</TableCell>
-                              <TableCell>{staff.title || 'Not specified'}</TableCell>
-                              <TableCell>{staff.department || 'Not specified'}</TableCell>
-                              <TableCell>{staff.hireDate ? formatDate(staff.hireDate) : 'Not specified'}</TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1">
-                                  {staff.skills ? (
-                                    staff.skills.map((skill, index) => (
-                                      <Badge key={index} variant="outline">{skill}</Badge>
-                                    ))
-                                  ) : (
-                                    'No skills listed'
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                                <div className="flex justify-end gap-2">
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openAssignTaskDialog(staff);
-                                    }}
-                                    title="Assign task"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openEditDialog(staff);
-                                    }}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteStaff(staff.id);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))
-                        ) : (
-                          <TableRow>
-                            <TableCell colSpan={7} className="text-center py-6 text-muted-foreground">
-                              {searchQuery ? 'No staff members match your search criteria' : 'No staff members found'}
-                            </TableCell>
-                          </TableRow>
-                        )}
-                      </TableBody>
-                    </Table>
-                  </div>
-                )}
+                <StaffList 
+                  staffMembers={staffMembers}
+                  isLoading={isLoading}
+                  searchQuery={searchQuery}
+                  onView={handleViewStaff}
+                  onEdit={openEditDialog}
+                  onDelete={handleDeleteStaff}
+                  onAssignTask={openAssignTaskDialog}
+                />
               </CardContent>
             </Card>
           </TabsContent>
@@ -545,35 +382,10 @@ const StaffManagementPage = () => {
                     {selectedStaff ? (
                       <StaffPerformanceSummary userId={selectedStaff.userId} />
                     ) : (
-                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {staffPerformance.map((staff) => (
-                          <Card key={staff.id} className="hover:bg-accent/20 transition-colors cursor-pointer" onClick={() => {
-                            const staffMember = staffMembers.find(s => s.id === staff.id);
-                            if (staffMember) setSelectedStaff(staffMember);
-                          }}>
-                            <CardContent className="pt-6">
-                              <div className="text-lg font-medium mb-2">{staff.name}</div>
-                              <div className="grid grid-cols-2 gap-4 mt-4">
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Tickets Resolved</p>
-                                  <p className="text-xl font-bold">{staff.ticketsResolved}</p>
-                                </div>
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Tasks Completed</p>
-                                  <p className="text-xl font-bold">{staff.tasksCompleted}</p>
-                                </div>
-                              </div>
-                              <div className="mt-4">
-                                <p className="text-sm text-muted-foreground">Efficiency Rating</p>
-                                <div className="flex items-center mt-1 gap-2">
-                                  <Progress value={staff.efficiency} className="h-2" />
-                                  <span className="text-sm font-medium">{staff.efficiency}%</span>
-                                </div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
+                      <StaffPerformanceCards 
+                        staffPerformance={staffPerformance}
+                        onSelectStaff={handlePerformanceStaffSelect}
+                      />
                     )}
                     
                     {selectedStaff && (
@@ -591,209 +403,19 @@ const StaffManagementPage = () => {
         </Tabs>
       </div>
 
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Add Staff Member</DialogTitle>
-            <DialogDescription>
-              Create a new staff member record. Select a user with STAFF role.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleAddStaff)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="userId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>User</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a user" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {availableUsers.map(user => (
-                          <SelectItem key={user.id} value={user.id}>
-                            {user.firstName || user.lastName ? 
-                              `${user.firstName || ''} ${user.lastName || ''} (${user.email})` : 
-                              user.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Select an existing user with STAFF role
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Senior Developer" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="department"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Department</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Engineering" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="bio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Bio</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Brief bio..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="skills"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Skills</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. React, TypeScript, Node.js (comma-separated)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="hireDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hire Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setIsAddDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Add Staff</Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Edit Staff Member</DialogTitle>
-            <DialogDescription>
-              Update staff member information.
-            </DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleEditStaff)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Senior Developer" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="department"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Department</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. Engineering" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="bio"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Bio</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Brief bio..." {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="skills"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Skills</FormLabel>
-                    <FormControl>
-                      <Input placeholder="e.g. React, TypeScript, Node.js (comma-separated)" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="hireDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Hire Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setIsEditDialogOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Update Staff</Button>
-              </DialogFooter>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
+      <StaffAddDialog 
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onSubmit={handleAddStaff}
+        availableUsers={availableUsers}
+      />
+      
+      <StaffEditDialog 
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSubmit={handleEditStaff}
+        selectedStaff={selectedStaff}
+      />
 
       <TaskAssignmentDialog 
         open={isAssignTaskDialogOpen}

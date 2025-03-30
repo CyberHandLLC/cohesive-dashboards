@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { 
@@ -17,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import UserEditDialog from '@/components/users/UserEditDialog';
 
 const UsersPage = () => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const { users, isLoading, deleteUser, addUser, editUser, changeRole } = useUsers(searchQuery);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState<boolean>(false);
@@ -32,8 +34,7 @@ const UsersPage = () => {
 
   const handleViewUser = (userId: string) => {
     // Navigate to user details page
-    console.log(`View user with ID: ${userId}`);
-    // Implementation would depend on your routing system
+    navigate(`/admin/accounts/users/${userId}`);
   };
 
   const handleEditUser = (userId: string) => {

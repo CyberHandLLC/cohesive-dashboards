@@ -34,7 +34,7 @@ interface UserFormData {
   emailVerified: boolean;
   firstName?: string;
   lastName?: string;
-  clientId?: string;
+  clientId?: string | null; // Updated to allow null explicitly
 }
 
 export const useUsers = (searchQuery: string = '') => {
@@ -175,7 +175,7 @@ export const useUsers = (searchQuery: string = '') => {
           role: userData.role,
           status: userData.status,
           emailVerified: userData.emailVerified,
-          clientId: userData.clientId || null
+          clientId: userData.clientId === "unassigned" || userData.clientId === "none" ? null : userData.clientId
         })
         .eq('id', authData.user.id);
       
@@ -213,17 +213,23 @@ export const useUsers = (searchQuery: string = '') => {
   const editUser = async (userId: string, userData: Partial<UserFormData>) => {
     try {
       // Update the user record
+      const updateData: any = {
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        status: userData.status,
+        emailVerified: userData.emailVerified
+      };
+      
+      // Handle clientId separately to account for special values
+      if (userData.clientId !== undefined) {
+        updateData.clientId = userData.clientId === "unassigned" || userData.clientId === "none" ? null : userData.clientId;
+      }
+      
       const { error } = await supabase
         .from('User')
-        .update({
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          role: userData.role,
-          status: userData.status,
-          emailVerified: userData.emailVerified,
-          clientId: userData.clientId
-        })
+        .update(updateData)
         .eq('id', userId);
       
       if (error) throw error;

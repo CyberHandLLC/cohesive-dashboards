@@ -22,6 +22,7 @@ import ObserverDashboard from "./pages/dashboards/ObserverDashboard";
 // Admin Account Pages
 import ClientsPage from "./pages/accounts/ClientsPage";
 import UsersPage from "./pages/accounts/UsersPage";
+import UserDetailsPage from "./pages/accounts/UserDetailsPage";
 import StaffManagementPage from "./pages/accounts/StaffManagementPage";
 import AdminClientServicesPage from "./pages/accounts/ClientServicesPage";
 
@@ -84,6 +85,7 @@ const App = () => (
           <Route path="/admin/accounts/clients" element={<DashboardRoute element={<ClientsPage />} />} />
           <Route path="/admin/accounts/clients/services" element={<DashboardRoute element={<AdminClientServicesPage />} />} />
           <Route path="/admin/accounts/users" element={<DashboardRoute element={<UsersPage />} />} />
+          <Route path="/admin/accounts/users/:id" element={<DashboardRoute element={<UserDetailsPage />} />} />
           <Route path="/admin/accounts/staff" element={<DashboardRoute element={<StaffManagementPage />} />} />
           
           {/* Admin Client Detail Routes - Updated with consistent paths */}

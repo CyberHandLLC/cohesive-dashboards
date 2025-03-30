@@ -81,7 +81,11 @@ const UsersTable: React.FC<UsersTableProps> = ({
         <TableBody>
           {users.length > 0 ? (
             users.map((user) => (
-              <TableRow key={user.id}>
+              <TableRow 
+                key={user.id}
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => onView(user.id)}
+              >
                 <TableCell>
                   {user.firstName && user.lastName
                     ? `${user.firstName} ${user.lastName}`
@@ -106,7 +110,7 @@ const UsersTable: React.FC<UsersTableProps> = ({
                       'N/A')}
                 </TableCell>
                 <TableCell>{formatDate(user.createdAt)}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                   <UserTableActions 
                     userId={user.id} 
                     userRole={user.role}

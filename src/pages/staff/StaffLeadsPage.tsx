@@ -215,7 +215,7 @@ const StaffLeadsPage: React.FC = () => {
       
       const clientId = clientResult.id;
       
-      // 2. Create a contact record as the primary contact
+      // 2. Create a contact record as the primary contact using lead data
       const contactData = {
         firstName: selectedLead.name.split(' ')[0] || '',
         lastName: selectedLead.name.split(' ').slice(1).join(' ') || '',
@@ -223,8 +223,8 @@ const StaffLeadsPage: React.FC = () => {
         phone: values.contactPhone || selectedLead.phone,
         clientId,
         isPrimary: true,
-        status: 'ACTIVE',
-        contactType: 'PRIMARY',
+        status: 'ACTIVE' as const,
+        contactType: 'PRIMARY' as const,
       };
       
       const { error: contactError } = await supabase

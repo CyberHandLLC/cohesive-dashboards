@@ -1,5 +1,8 @@
 
 export type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'PAST';
+export type ContactStatus = 'ACTIVE' | 'INACTIVE';
+export type ContactType = 'PRIMARY' | 'BILLING' | 'TECHNICAL' | 'OTHER';
+export type PreferredContactMethod = 'EMAIL' | 'PHONE' | 'SMS' | 'MAIL';
 
 export interface ClientService {
   id: string;
@@ -38,30 +41,46 @@ export interface Client {
   contactPhone?: string;
 }
 
+export interface Contact {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string | null;
+  role?: string | null;
+  isPrimary: boolean;
+  clientId: string;
+  status: ContactStatus;
+  contactType?: ContactType | null;
+  preferredContactMethod?: PreferredContactMethod | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateClientData {
   companyName: string;
-  industry?: string;
-  websiteUrl?: string;
-  notes?: string;
+  industry?: string | null;
+  websiteUrl?: string | null;
+  notes?: string | null;
   status?: ClientStatus;
-  serviceStartDate?: string;
-  serviceEndDate?: string;
-  accountManagerId?: string;
-  billingContactId?: string;
+  serviceStartDate?: string | null;
+  serviceEndDate?: string | null;
+  accountManagerId?: string | null;
+  billingContactId?: string | null;
   contactEmail?: string;
   contactPhone?: string;
 }
 
 export interface UpdateClientData {
   companyName?: string;
-  industry?: string;
-  websiteUrl?: string;
-  notes?: string;
+  industry?: string | null;
+  websiteUrl?: string | null;
+  notes?: string | null;
   status?: ClientStatus;
-  serviceStartDate?: string;
-  serviceEndDate?: string;
-  accountManagerId?: string;
-  billingContactId?: string;
+  serviceStartDate?: string | null;
+  serviceEndDate?: string | null;
+  accountManagerId?: string | null;
+  billingContactId?: string | null;
   contactEmail?: string;
   contactPhone?: string;
 }

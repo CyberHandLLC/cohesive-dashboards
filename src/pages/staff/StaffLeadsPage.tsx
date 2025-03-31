@@ -23,6 +23,8 @@ import { Column, ResponsiveTable } from '@/components/ui/responsive-table';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Lead, LeadStatus, LeadSource } from '@/types/lead';
+import LeadConvertDialog, { ConvertFormValues } from '@/components/leads/LeadConvertDialog';
+import { CreateClientData } from '@/types/client';
 
 interface StaffLeadsPage {
   id: string;
@@ -52,6 +54,11 @@ const StaffLeadsPage: React.FC = () => {
   const [sourceFilter, setSourceFilter] = useState<string>('all');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+  
+  // Selected lead for conversion
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+  const [isConvertDialogOpen, setIsConvertDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const { userId, staffId, isLoading: userIdLoading, error: userIdError } = useClientId();
   const { toast } = useToast();
@@ -170,12 +177,9 @@ const StaffLeadsPage: React.FC = () => {
   };
 
   const handleConvert = (lead: Lead) => {
-    // Convert lead to client or open a dialog
-    console.log('Convert lead to client:', lead);
-    toast({
-      title: "Coming Soon",
-      description: "Lead conversion will be available soon",
-    });
+    // Open the convert dialog with the selected lead
+    setSelectedLead(lead);
+    setIsConvertDialogOpen(true);
   };
 
   const handleAssign = (lead: Lead) => {
@@ -185,6 +189,113 @@ const StaffLeadsPage: React.FC = () => {
       title: "Coming Soon",
       description: "Lead assignment will be available soon",
     });
+  };
+
+  const handleConvertSubmit = async (values: ConvertFormValues) => {
+    if (!selectedLead) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      // 1. Create a client record
+      const clientData: CreateClientData = {
+        companyName: values.companyName,
+        industry: values.industry || null,
+        websiteUrl: values.websiteUrl || null,
+        status: 'ACTIVE',
+      };
+      
+      const { data: clientResult, error: clientError } = await supabase
+        .from('Client')
+        .insert(clientData)
+        .select('id')
+        .single();
+      
+      if (clientError) throw clientError;
+      
+      const clientId = clientResult.id;
+      
+      // 2. Create a contact record as the primary contact
+      const contactData = {
+        firstName: selectedLead.name.split(' ')[0] || '',
+        lastName: selectedLead.name.split(' ').slice(1).join(' ') || '',
+        email: values.contactEmail,
+        phone: values.contactPhone || selectedLead.phone,
+        clientId,
+        isPrimary: true,
+        status: 'ACTIVE',
+        contactType: 'PRIMARY',
+      };
+      
+      const { error: contactError } = await supabase
+        .from('Contact')
+        .insert(contactData);
+      
+      if (contactError) throw contactError;
+      
+      // 3. If createClientUser is true, find or create a user with CLIENT role
+      if (values.createClientUser) {
+        // Check if a user with this email already exists
+        const { data: existingUser, error: userCheckError } = await supabase
+          .from('User')
+          .select('id, email, role, clientId')
+          .eq('email', values.contactEmail)
+          .maybeSingle();
+        
+        if (userCheckError) throw userCheckError;
+        
+        if (existingUser) {
+          // Update existing user to CLIENT role and associate with the client
+          const { error: userUpdateError } = await supabase
+            .from('User')
+            .update({
+              role: 'CLIENT',
+              clientId,
+            })
+            .eq('id', existingUser.id);
+          
+          if (userUpdateError) throw userUpdateError;
+        } else {
+          // We would send an invite or create a user here,
+          // but for now we'll just show a message about manual user creation
+          toast({
+            title: "Note",
+            description: "No existing user found with this email. You'll need to create a user account manually.",
+          });
+        }
+      }
+      
+      // 4. Update the lead status to CONVERTED and link to the new client
+      const { error: leadUpdateError } = await supabase
+        .from('Lead')
+        .update({
+          status: 'CONVERTED',
+          convertedClientId: clientId,
+        })
+        .eq('id', selectedLead.id);
+      
+      if (leadUpdateError) throw leadUpdateError;
+      
+      // 5. Close the dialog and refresh the leads
+      setIsConvertDialogOpen(false);
+      setSelectedLead(null);
+      fetchLeads();
+      
+      toast({
+        title: "Lead Converted",
+        description: `${selectedLead.name} has been successfully converted to a client.`,
+      });
+      
+    } catch (error: any) {
+      console.error('Error converting lead to client:', error);
+      toast({
+        title: "Conversion Failed",
+        description: error.message || "An error occurred while converting the lead to a client.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Display loading or error state if needed
@@ -467,6 +578,19 @@ const StaffLeadsPage: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Lead Convert Dialog */}
+      {selectedLead && (
+        <LeadConvertDialog
+          open={isConvertDialogOpen}
+          onOpenChange={setIsConvertDialogOpen}
+          onSubmit={handleConvertSubmit}
+          leadName={selectedLead.name}
+          leadEmail={selectedLead.email}
+          leadPhone={selectedLead.phone}
+          isSubmitting={isSubmitting}
+        />
+      )}
     </DashboardLayout>
   );
 };

@@ -28,17 +28,17 @@ const ServiceRequestTable: React.FC<ServiceRequestTableProps> = ({
     {
       id: 'requestDate',
       header: 'Date',
-      cell: (row) => formatDate(row.createdAt),
+      cell: (row) => formatDate(row.createdat),
     },
     {
       id: 'name',
       header: 'Name',
-      cell: (row) => `${row.firstName} ${row.lastName}`,
+      cell: (row) => `${row.firstname} ${row.lastname}`,
     },
     {
       id: 'companyName',
       header: 'Company',
-      cell: (row) => row.companyName,
+      cell: (row) => row.companyname,
       responsive: true,
     },
     {

@@ -69,6 +69,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
       path: '/admin/engagements',
       active: location.pathname.startsWith('/admin/engagements'),
       subItems: [
+        { title: 'Service Requests', path: '/admin/engagements/service-requests' },
         { title: 'Content Management', path: '/admin/engagements/content' },
         { title: 'Lead Management', path: '/admin/engagements/leads' },
       ],

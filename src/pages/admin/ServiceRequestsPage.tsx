@@ -51,7 +51,7 @@ const ServiceRequestsPage = () => {
         .from('ServiceRequest')
         .select(`
           *,
-          service:serviceId(name, description, price, features)
+          service:serviceid(name, description, price, features)
         `);
       
       if (statusFilter !== 'all') {
@@ -60,11 +60,11 @@ const ServiceRequestsPage = () => {
       
       if (searchQuery) {
         query = query.or(
-          `firstName.ilike.%${searchQuery}%,lastName.ilike.%${searchQuery}%,companyName.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`
+          `firstname.ilike.%${searchQuery}%,lastname.ilike.%${searchQuery}%,companyname.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`
         );
       }
       
-      const { data, error } = await query.order('createdAt', { ascending: false });
+      const { data, error } = await query.order('createdat', { ascending: false });
       
       if (error) throw error;
       
@@ -95,7 +95,7 @@ const ServiceRequestsPage = () => {
         .from('ServiceRequest')
         .update({
           status: 'REJECTED',
-          processedAt: new Date().toISOString(),
+          processedat: new Date().toISOString(),
         })
         .eq('id', requestToReject.id);
       

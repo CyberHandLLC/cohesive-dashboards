@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { formatDate } from '@/lib/formatters';
 import { Badge } from '@/components/ui/badge';
 import { ServiceRequest } from '@/types/service-request';
-import { CheckCircle, XCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Eye } from 'lucide-react';
 
 interface ServiceRequestTableProps {
   data: ServiceRequest[];
@@ -24,7 +24,8 @@ const ServiceRequestTable: React.FC<ServiceRequestTableProps> = ({
   onReject,
   onViewDetails,
 }) => {
-  console.log('Service request table data:', data);
+  console.log('Table received service request data:', data);
+  console.log('Table loading state:', isLoading);
   
   const columns: Column<ServiceRequest>[] = [
     {
@@ -85,6 +86,19 @@ const ServiceRequestTable: React.FC<ServiceRequestTableProps> = ({
       header: 'Actions',
       cell: (row) => (
         <div className="flex space-x-2 justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-blue-600"
+            onClick={(e) => {
+              e.stopPropagation();
+              onViewDetails(row);
+            }}
+          >
+            <Eye className="h-4 w-4 mr-1" />
+            View
+          </Button>
+          
           {row.status === 'PENDING' && (
             <>
               <Button
@@ -119,12 +133,6 @@ const ServiceRequestTable: React.FC<ServiceRequestTableProps> = ({
     },
   ];
 
-  // Check if there's any data to display
-  const noData = !data || data.length === 0;
-  
-  console.log('No data?', noData);
-  console.log('Loading?', isLoading);
-  
   return (
     <ResponsiveTable
       columns={columns}

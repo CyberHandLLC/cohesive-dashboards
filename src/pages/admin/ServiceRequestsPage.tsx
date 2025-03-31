@@ -48,61 +48,32 @@ const ServiceRequestsPage = () => {
       setIsLoading(true);
       console.log('Fetching service requests with filters:', { statusFilter, searchQuery });
       
-      // First, let's get all service requests to check if there are any
-      const checkQuery = await supabase
-        .from('ServiceRequest')
-        .select('*');
-      
-      console.log('Debug - all service requests:', checkQuery);
-      
-      // If we have an error in the basic query, show it
-      if (checkQuery.error) {
-        console.error('Error in basic query:', checkQuery.error);
-        throw checkQuery.error;
-      }
-      
-      // Check if we have any data at all
-      if (!checkQuery.data || checkQuery.data.length === 0) {
-        console.log('No service requests found in the database');
-        setServiceRequests([]);
-        return;
-      }
-      
-      // Now proceed with the actual query with filters
-      let query = supabase
+      // Direct query with minimal filtering to debug the table
+      const { data, error } = await supabase
         .from('ServiceRequest')
         .select(`
           *,
           service:serviceid(name, description, price, features)
-        `);
-      
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
-      }
-      
-      if (searchQuery) {
-        query = query.or(
-          `firstname.ilike.%${searchQuery}%,lastname.ilike.%${searchQuery}%,companyname.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`
-        );
-      }
-      
-      const { data, error } = await query.order('createdat', { ascending: false });
+        `)
+        .order('createdat', { ascending: false });
       
       if (error) {
         console.error('Query error:', error);
         throw error;
       }
       
-      console.log('Service requests data:', data);
+      console.log('Raw service request data from database:', data);
       
+      // If no data, show empty state
       if (!data || data.length === 0) {
-        console.log('No service requests found matching the filters');
+        console.log('No service requests found in the database');
         setServiceRequests([]);
+        setIsLoading(false);
         return;
       }
       
-      // Map the database column names to camelCase for frontend
-      const formattedData = data.map((item: any) => ({
+      // Map each request explicitly to ensure correct field mapping
+      const formattedData = data.map((item: any): ServiceRequest => ({
         id: item.id,
         userid: item.userid,
         serviceid: item.serviceid,
@@ -110,12 +81,17 @@ const ServiceRequestsPage = () => {
         lastname: item.lastname,
         companyname: item.companyname,
         email: item.email,
-        phone: item.phone,
+        phone: item.phone || null,
         message: item.message,
         status: item.status as ServiceRequestStatus,
         createdat: item.createdat,
-        processedat: item.processedat,
-        service: item.service
+        processedat: item.processedat || null,
+        service: item.service ? {
+          name: item.service.name,
+          description: item.service.description,
+          price: item.service.price,
+          features: item.service.features,
+        } : undefined
       }));
       
       console.log('Formatted service requests data:', formattedData);
@@ -127,7 +103,6 @@ const ServiceRequestsPage = () => {
         description: 'Failed to load service requests: ' + error.message,
         variant: 'destructive',
       });
-      // Set empty array so UI doesn't crash
       setServiceRequests([]);
     } finally {
       setIsLoading(false);

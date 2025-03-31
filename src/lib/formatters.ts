@@ -78,3 +78,17 @@ export function formatPhoneNumber(phone: string | null | undefined): string {
   // If not 10 digits, return the original string
   return phone;
 }
+
+/**
+ * Generates a unique invoice number with the format INV-YYYYMMDD-XXXX
+ * where XXXX is a random 4-digit number
+ */
+export function generateInvoiceNumber(): string {
+  const date = new Date();
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const random = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
+  
+  return `INV-${year}${month}${day}-${random}`;
+}

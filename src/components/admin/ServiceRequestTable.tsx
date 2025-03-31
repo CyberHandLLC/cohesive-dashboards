@@ -24,6 +24,8 @@ const ServiceRequestTable: React.FC<ServiceRequestTableProps> = ({
   onReject,
   onViewDetails,
 }) => {
+  console.log('Service request table data:', data);
+  
   const columns: Column<ServiceRequest>[] = [
     {
       id: 'requestDate',
@@ -117,6 +119,12 @@ const ServiceRequestTable: React.FC<ServiceRequestTableProps> = ({
     },
   ];
 
+  // Check if there's any data to display
+  const noData = !data || data.length === 0;
+  
+  console.log('No data?', noData);
+  console.log('Loading?', isLoading);
+  
   return (
     <ResponsiveTable
       columns={columns}

@@ -55,6 +55,20 @@ const ServiceRequestsPage = () => {
       
       console.log('Debug - all service requests:', checkQuery);
       
+      // If we have an error in the basic query, show it
+      if (checkQuery.error) {
+        console.error('Error in basic query:', checkQuery.error);
+        throw checkQuery.error;
+      }
+      
+      // Check if we have any data at all
+      if (!checkQuery.data || checkQuery.data.length === 0) {
+        console.log('No service requests found in the database');
+        setServiceRequests([]);
+        return;
+      }
+      
+      // Now proceed with the actual query with filters
       let query = supabase
         .from('ServiceRequest')
         .select(`
@@ -81,8 +95,31 @@ const ServiceRequestsPage = () => {
       
       console.log('Service requests data:', data);
       
-      const typedData = data as unknown as ServiceRequest[];
-      setServiceRequests(typedData || []);
+      if (!data || data.length === 0) {
+        console.log('No service requests found matching the filters');
+        setServiceRequests([]);
+        return;
+      }
+      
+      // Map the database column names to camelCase for frontend
+      const formattedData = data.map((item: any) => ({
+        id: item.id,
+        userid: item.userid,
+        serviceid: item.serviceid,
+        firstname: item.firstname,
+        lastname: item.lastname,
+        companyname: item.companyname,
+        email: item.email,
+        phone: item.phone,
+        message: item.message,
+        status: item.status as ServiceRequestStatus,
+        createdat: item.createdat,
+        processedat: item.processedat,
+        service: item.service
+      }));
+      
+      console.log('Formatted service requests data:', formattedData);
+      setServiceRequests(formattedData);
     } catch (error: any) {
       console.error('Error fetching service requests:', error);
       toast({
@@ -90,6 +127,8 @@ const ServiceRequestsPage = () => {
         description: 'Failed to load service requests: ' + error.message,
         variant: 'destructive',
       });
+      // Set empty array so UI doesn't crash
+      setServiceRequests([]);
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +164,7 @@ const ServiceRequestsPage = () => {
       console.error('Error rejecting request:', error);
       toast({
         title: 'Error',
-        description: 'Failed to reject the request',
+        description: 'Failed to reject the request: ' + error.message,
         variant: 'destructive',
       });
     }
@@ -137,7 +176,6 @@ const ServiceRequestsPage = () => {
   };
 
   const handleViewDetails = (request: ServiceRequest) => {
-    // For now, just process the request when clicking on the row
     handleProcessRequest(request);
   };
   

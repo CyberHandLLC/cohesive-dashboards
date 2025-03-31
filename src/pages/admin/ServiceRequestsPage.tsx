@@ -48,6 +48,13 @@ const ServiceRequestsPage = () => {
       setIsLoading(true);
       console.log('Fetching service requests with filters:', { statusFilter, searchQuery });
       
+      // First, let's get all service requests to check if there are any
+      const checkQuery = await supabase
+        .from('ServiceRequest')
+        .select('*');
+      
+      console.log('Debug - all service requests:', checkQuery);
+      
       let query = supabase
         .from('ServiceRequest')
         .select(`
@@ -67,7 +74,10 @@ const ServiceRequestsPage = () => {
       
       const { data, error } = await query.order('createdat', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('Query error:', error);
+        throw error;
+      }
       
       console.log('Service requests data:', data);
       
@@ -77,7 +87,7 @@ const ServiceRequestsPage = () => {
       console.error('Error fetching service requests:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load service requests',
+        description: 'Failed to load service requests: ' + error.message,
         variant: 'destructive',
       });
     } finally {

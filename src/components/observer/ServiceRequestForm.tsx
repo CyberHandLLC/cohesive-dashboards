@@ -72,7 +72,7 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ serviceId, serv
       }
       
       // Create a service request in the database
-      const { data: requestData, error: requestError } = await supabase
+      const { error: requestError } = await supabase
         .from('ServiceRequest')
         .insert({
           userId: session.user.id,
@@ -84,9 +84,7 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ serviceId, serv
           phone: values.phone || null,
           message: values.message,
           status: 'PENDING',
-        })
-        .select()
-        .single();
+        });
         
       if (requestError) throw requestError;
       

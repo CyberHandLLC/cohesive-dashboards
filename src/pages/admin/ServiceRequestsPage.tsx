@@ -17,7 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Search, Filter, UserPlus } from 'lucide-react';
 import ServiceRequestTable from '@/components/admin/ServiceRequestTable';
 import ClientOnboardingDialog from '@/components/admin/ClientOnboardingDialog';
-import { ServiceRequest } from '@/types/service-request';
+import { ServiceRequest, ServiceRequestStatus } from '@/types/service-request';
 
 const ServiceRequestsPage = () => {
   const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
@@ -51,7 +51,7 @@ const ServiceRequestsPage = () => {
         .from('ServiceRequest')
         .select(`
           *,
-          service:serviceId(name, price, features)
+          service:serviceId(name, description, price, features)
         `);
       
       if (statusFilter !== 'all') {
@@ -68,7 +68,8 @@ const ServiceRequestsPage = () => {
       
       if (error) throw error;
       
-      setServiceRequests(data || []);
+      const typedData = data as unknown as ServiceRequest[];
+      setServiceRequests(typedData || []);
     } catch (error: any) {
       console.error('Error fetching service requests:', error);
       toast({

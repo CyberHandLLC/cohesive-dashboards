@@ -3,16 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import {
   Form,
   FormControl,
@@ -23,29 +22,45 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { Loader2, UserPlus, AlertTriangle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2 } from 'lucide-react';
-import { ClientStatus } from '@/types/client';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { ServiceRequest } from '@/types/service-request';
 
+// Form schema for client onboarding
 const clientOnboardingSchema = z.object({
-  // Client Information
-  companyName: z.string().min(1, 'Company name is required'),
+  // Client company details
+  companyName: z.string().min(2, 'Company name is required'),
   industry: z.string().optional(),
-  websiteUrl: z.string().url('Must be a valid URL').or(z.string().length(0)).optional(),
-  status: z.enum(['ACTIVE', 'INACTIVE', 'PAST']),
+  websiteUrl: z.string().url('Must be a valid URL').optional().or(z.string().length(0)),
   
-  // Contact Information
-  firstName: z.string().min(1, 'First name is required'),
-  lastName: z.string().min(1, 'Last name is required'),
+  // Primary contact details
+  firstName: z.string().min(2, 'First name is required'),
+  lastName: z.string().min(2, 'Last name is required'),
   email: z.string().email('Invalid email address'),
   phone: z.string().optional(),
   
-  // Service Information
+  // User account details
+  createUserAccount: z.boolean().default(false),
+  userExists: z.boolean().default(false),
+
+  // Service details
+  serviceStartDate: z.string(),
   serviceId: z.string().min(1, 'Service is required'),
-  price: z.number().min(0),
+  
+  // Notes
+  notes: z.string().optional(),
 });
 
 type ClientOnboardingFormValues = z.infer<typeof clientOnboardingSchema>;
@@ -53,8 +68,8 @@ type ClientOnboardingFormValues = z.infer<typeof clientOnboardingSchema>;
 interface ClientOnboardingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  serviceRequestData?: any;
-  onSuccess?: () => void;
+  serviceRequestData: ServiceRequest | null;
+  onSuccess: () => void;
 }
 
 const ClientOnboardingDialog: React.FC<ClientOnboardingDialogProps> = ({
@@ -66,180 +81,190 @@ const ClientOnboardingDialog: React.FC<ClientOnboardingDialogProps> = ({
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [services, setServices] = useState<any[]>([]);
-  const [staffMembers, setStaffMembers] = useState<any[]>([]);
-  
+  const [userExists, setUserExists] = useState(false);
+  const [emailExists, setEmailExists] = useState(false);
+  const [isCheckingEmail, setIsCheckingEmail] = useState(false);
+
   const form = useForm<ClientOnboardingFormValues>({
     resolver: zodResolver(clientOnboardingSchema),
     defaultValues: {
       companyName: serviceRequestData?.companyName || '',
       industry: '',
       websiteUrl: '',
-      status: 'ACTIVE' as ClientStatus,
       firstName: serviceRequestData?.firstName || '',
       lastName: serviceRequestData?.lastName || '',
       email: serviceRequestData?.email || '',
       phone: serviceRequestData?.phone || '',
+      createUserAccount: false,
+      userExists: false,
+      serviceStartDate: new Date().toISOString().split('T')[0],
       serviceId: serviceRequestData?.serviceId || '',
-      price: 0,
+      notes: '',
     },
   });
-  
-  useEffect(() => {
-    if (open) {
-      fetchServices();
-      fetchStaffMembers();
-      
-      // Update form values when serviceRequestData changes
-      if (serviceRequestData) {
-        form.reset({
-          companyName: serviceRequestData.companyName || '',
-          industry: '',
-          websiteUrl: '',
-          status: 'ACTIVE',
-          firstName: serviceRequestData.firstName || '',
-          lastName: serviceRequestData.lastName || '',
-          email: serviceRequestData.email || '',
-          phone: serviceRequestData.phone || '',
-          serviceId: serviceRequestData.serviceId || '',
-          price: 0,
-        });
-      }
-    }
-  }, [open, serviceRequestData]);
-  
-  useEffect(() => {
-    const selectedServiceId = form.watch('serviceId');
-    if (selectedServiceId && services.length > 0) {
-      const service = services.find((s) => s.id === selectedServiceId);
-      if (service) {
-        form.setValue('price', service.price || 0);
-      }
-    }
-  }, [form.watch('serviceId'), services]);
 
-  const fetchServices = async () => {
+  // Fetch services
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('Service')
+          .select('*')
+          .order('name');
+        
+        if (error) {
+          throw error;
+        }
+        
+        setServices(data || []);
+      } catch (error) {
+        console.error('Error fetching services:', error);
+      }
+    };
+
+    fetchServices();
+  }, []);
+
+  // Update form values when serviceRequestData changes
+  useEffect(() => {
+    if (serviceRequestData) {
+      form.reset({
+        ...form.getValues(),
+        companyName: serviceRequestData.companyName || '',
+        firstName: serviceRequestData.firstName || '',
+        lastName: serviceRequestData.lastName || '',
+        email: serviceRequestData.email || '',
+        phone: serviceRequestData.phone || '',
+        serviceId: serviceRequestData.serviceId || '',
+      });
+
+      // Check if user with this email already exists
+      checkEmailExists(serviceRequestData.email);
+    }
+  }, [serviceRequestData, form]);
+
+  // Check if user with email exists
+  const checkEmailExists = async (email: string) => {
+    if (!email) return;
+    
+    setIsCheckingEmail(true);
     try {
       const { data, error } = await supabase
-        .from('Service')
+        .from('User')
         .select('*')
-        .order('name');
+        .eq('email', email)
+        .single();
 
-      if (error) throw error;
-      setServices(data || []);
+      if (error && error.code !== 'PGRST116') {
+        throw error;
+      }
+
+      const exists = !!data;
+      setEmailExists(exists);
+      setUserExists(exists);
+      form.setValue('userExists', exists);
     } catch (error) {
-      console.error('Error fetching services:', error);
+      console.error('Error checking email:', error);
+    } finally {
+      setIsCheckingEmail(false);
     }
   };
 
-  const fetchStaffMembers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('Staff')
-        .select('id, title, User!inner(firstName, lastName)')
-        .order('User.firstName');
-
-      if (error) throw error;
-      setStaffMembers(data || []);
-    } catch (error) {
-      console.error('Error fetching staff members:', error);
-    }
-  };
-
+  // Handle form submission
   const onSubmit = async (values: ClientOnboardingFormValues) => {
     setIsSubmitting(true);
     
     try {
-      // Start by checking if a user with this email exists
-      const { data: existingUser, error: userCheckError } = await supabase
-        .from('User')
-        .select('id, clientId')
-        .eq('email', values.email)
-        .maybeSingle();
-        
-      if (userCheckError) throw userCheckError;
+      // 1. Create the client
+      const { data: clientData, error: clientError } = await supabase
+        .from('Client')
+        .insert({
+          companyName: values.companyName,
+          industry: values.industry || null,
+          websiteUrl: values.websiteUrl || null,
+          serviceStartDate: values.serviceStartDate,
+          status: 'ACTIVE',
+          notes: values.notes || null,
+        })
+        .select()
+        .single();
+
+      if (clientError) throw clientError;
       
-      let userId = existingUser?.id;
-      let clientId = existingUser?.clientId;
+      const clientId = clientData.id;
       
-      // If no clientId exists, create a new client
-      if (!clientId) {
-        // Create new client
-        const { data: newClient, error: clientError } = await supabase
-          .from('Client')
-          .insert({
-            companyName: values.companyName,
-            industry: values.industry || null,
-            websiteUrl: values.websiteUrl || null,
-            status: values.status,
-          })
-          .select('id')
-          .single();
-          
-        if (clientError) throw clientError;
-        
-        clientId = newClient.id;
-      }
-      
-      // Create a contact record
+      // 2. Create primary contact
       const { error: contactError } = await supabase
         .from('Contact')
         .insert({
+          clientId,
           firstName: values.firstName,
           lastName: values.lastName,
           email: values.email,
           phone: values.phone || null,
-          clientId: clientId,
           isPrimary: true,
-          status: 'ACTIVE',
           contactType: 'PRIMARY',
+          status: 'ACTIVE',
         });
-        
+      
       if (contactError) throw contactError;
       
-      // If user exists, update their clientId and role
-      if (userId) {
-        const { error: userUpdateError } = await supabase
+      // 3. Update user if exists or create new user account
+      let userId = null;
+      
+      if (values.userExists) {
+        // Update existing user to link with client
+        const { data: userData, error: userUpdateError } = await supabase
           .from('User')
           .update({
-            clientId: clientId,
+            clientId,
             role: 'CLIENT',
           })
-          .eq('id', userId);
-          
+          .eq('email', values.email)
+          .select()
+          .single();
+        
         if (userUpdateError) throw userUpdateError;
+        userId = userData.id;
+      } else if (values.createUserAccount) {
+        // A new account needs to be created through auth system
+        toast({
+          title: 'Note',
+          description: 'Please manually create a user account for this client through the User Management page.',
+        });
       }
       
-      // Create client service record
-      const { error: serviceError } = await supabase
+      // 4. Add service to client
+      const { error: clientServiceError } = await supabase
         .from('ClientService')
         .insert({
-          clientId: clientId,
+          clientId,
           serviceId: values.serviceId,
-          status: 'ACTIVE',
-          price: values.price,
-          startDate: new Date().toISOString(),
+          startDate: values.serviceStartDate,
         });
-        
-      if (serviceError) throw serviceError;
       
-      // If this came from a service request, update its status
-      if (serviceRequestData?.id) {
-        await supabase
+      if (clientServiceError) throw clientServiceError;
+      
+      // 5. Update service request status to APPROVED
+      if (serviceRequestData) {
+        const { error: requestError } = await supabase
           .from('ServiceRequest')
           .update({
             status: 'APPROVED',
             processedAt: new Date().toISOString(),
           })
           .eq('id', serviceRequestData.id);
+        
+        if (requestError) throw requestError;
       }
       
       toast({
         title: 'Client onboarded successfully',
-        description: `${values.companyName} has been added as a client`,
+        description: 'The client has been created and service has been assigned.',
       });
       
-      if (onSuccess) onSuccess();
       onOpenChange(false);
+      onSuccess();
       
     } catch (error: any) {
       console.error('Error onboarding client:', error);
@@ -255,211 +280,279 @@ const ClientOnboardingDialog: React.FC<ClientOnboardingDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[700px]">
+      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Onboard New Client</DialogTitle>
+          <DialogTitle>Client Onboarding</DialogTitle>
           <DialogDescription>
-            Enter client information to set up a new account and assign services.
+            Create a new client account and assign services.
           </DialogDescription>
         </DialogHeader>
-        
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div>
-              <h3 className="text-lg font-medium mb-4">Client Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="companyName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Company Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter company name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="industry"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Industry</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Enter industry" value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="websiteUrl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Website URL</FormLabel>
-                      <FormControl>
+            {/* Service request information if provided */}
+            {serviceRequestData && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-lg font-medium">Service Request</h3>
+                    <Badge variant="outline" className={serviceRequestData.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'}>
+                      {serviceRequestData.status}
+                    </Badge>
+                  </div>
+                  <div className="text-sm">
+                    <p><strong>Requested:</strong> {new Date(serviceRequestData.createdAt).toLocaleDateString()}</p>
+                    <p><strong>Service:</strong> {serviceRequestData.service?.name}</p>
+                    <p><strong>Message:</strong> {serviceRequestData.message}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Client Information */}
+            <div className="pb-2">
+              <h3 className="text-lg font-medium">Company Information</h3>
+            </div>
+            
+            <FormField
+              control={form.control}
+              name="companyName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Company Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Company Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="industry"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Industry</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Industry (optional)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="websiteUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Website URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://example.com (optional)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Primary Contact */}
+            <div className="pt-4 pb-2">
+              <h3 className="text-lg font-medium">Primary Contact</h3>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="firstName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>First Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="First Name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="lastName"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Last Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Last Name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="email"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Email</FormLabel>
+                    <FormControl>
+                      <div className="relative">
                         <Input 
+                          placeholder="Email" 
                           {...field} 
-                          placeholder="https://example.com" 
-                          value={field.value || ''} 
+                          onChange={(e) => {
+                            field.onChange(e);
+                            checkEmailExists(e.target.value);
+                          }}
                         />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="status"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Status</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="ACTIVE">Active</SelectItem>
-                          <SelectItem value="INACTIVE">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                        {isCheckingEmail && (
+                          <Loader2 className="animate-spin h-4 w-4 absolute right-3 top-1/2 -translate-y-1/2" />
+                        )}
+                        {emailExists && !isCheckingEmail && (
+                          <UserPlus className="h-4 w-4 text-green-600 absolute right-3 top-1/2 -translate-y-1/2" />
+                        )}
+                      </div>
+                    </FormControl>
+                    {emailExists && (
+                      <FormDescription className="text-green-600">
+                        Existing user found! They will be linked to this client.
+                      </FormDescription>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Phone (optional)" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            
-            <Separator />
-            
-            <div>
-              <h3 className="text-lg font-medium mb-4">Contact Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="First Name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Last Name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Email" type="email" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Phone Number" value={field.value || ''} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+
+            {/* User Account */}
+            <div className="pt-4 pb-2">
+              <h3 className="text-lg font-medium">User Account</h3>
             </div>
-            
-            <Separator />
-            
-            <div>
-              <h3 className="text-lg font-medium mb-4">Service Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="serviceId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Service</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select service" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {services.map((service) => (
-                            <SelectItem key={service.id} value={service.id}>
-                              {service.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Price</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
-                          value={field.value || 0} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+
+            {emailExists ? (
+              <div className="p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-700">
+                  A user with this email already exists. They will be assigned the CLIENT role and linked to this client.
+                </p>
               </div>
+            ) : (
+              <FormField
+                control={form.control}
+                name="createUserAccount"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Create User Account</FormLabel>
+                      <FormDescription>
+                        Create a user account with CLIENT role for this contact.
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Service Information */}
+            <div className="pt-4 pb-2">
+              <h3 className="text-lg font-medium">Service Information</h3>
             </div>
-            
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="serviceId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Service</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                      value={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a service" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {services.map((service) => (
+                          <SelectItem key={service.id} value={service.id}>
+                            {service.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="serviceStartDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Start Date</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Notes */}
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Additional Notes</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Any additional notes about the client or service..." 
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSubmitting}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
@@ -469,7 +562,7 @@ const ClientOnboardingDialog: React.FC<ClientOnboardingDialogProps> = ({
                     Processing...
                   </>
                 ) : (
-                  'Create Client'
+                  'Create Client & Assign Service'
                 )}
               </Button>
             </DialogFooter>

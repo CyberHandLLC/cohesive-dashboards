@@ -542,6 +542,59 @@ export type Database = {
           },
         ]
       }
+      ServiceRequest: {
+        Row: {
+          companyname: string
+          createdat: string
+          email: string
+          firstname: string
+          id: string
+          lastname: string
+          message: string
+          phone: string | null
+          processedat: string | null
+          serviceid: string
+          status: string
+          userid: string
+        }
+        Insert: {
+          companyname: string
+          createdat?: string
+          email: string
+          firstname: string
+          id?: string
+          lastname: string
+          message: string
+          phone?: string | null
+          processedat?: string | null
+          serviceid: string
+          status?: string
+          userid: string
+        }
+        Update: {
+          companyname?: string
+          createdat?: string
+          email?: string
+          firstname?: string
+          id?: string
+          lastname?: string
+          message?: string
+          phone?: string | null
+          processedat?: string | null
+          serviceid?: string
+          status?: string
+          userid?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ServiceRequest_serviceid_fkey"
+            columns: ["serviceid"]
+            isOneToOne: false
+            referencedRelation: "Service"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ServiceTier: {
         Row: {
           availability: Database["public"]["Enums"]["TierAvailability"]

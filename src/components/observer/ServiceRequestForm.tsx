@@ -71,15 +71,15 @@ const ServiceRequestForm: React.FC<ServiceRequestFormProps> = ({ serviceId, serv
         return;
       }
       
-      // Create a service request in the database
+      // Create a service request in the database - using lowercase column names that match the DB schema
       const { error: requestError } = await supabase
         .from('ServiceRequest')
         .insert({
-          userId: session.user.id,
-          serviceId: values.serviceId,
-          firstName: values.firstName,
-          lastName: values.lastName,
-          companyName: values.companyName,
+          userid: session.user.id,
+          serviceid: values.serviceId,
+          firstname: values.firstName,
+          lastname: values.lastName,
+          companyname: values.companyName,
           email: values.email,
           phone: values.phone || null,
           message: values.message,

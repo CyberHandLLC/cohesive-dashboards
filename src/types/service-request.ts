@@ -3,17 +3,17 @@ export type ServiceRequestStatus = 'PENDING' | 'PROCESSING' | 'APPROVED' | 'REJE
 
 export interface ServiceRequest {
   id: string;
-  userId: string;
-  serviceId: string;
-  firstName: string;
-  lastName: string;
-  companyName: string;
+  userid: string;
+  serviceid: string;
+  firstname: string;
+  lastname: string;
+  companyname: string;
   email: string;
   phone?: string | null;
   message: string;
   status: ServiceRequestStatus;
-  createdAt: string;
-  processedAt?: string | null;
+  createdat: string;
+  processedat?: string | null;
   service?: {
     name: string;
     description?: string;

@@ -46,6 +46,7 @@ const ServiceRequestsPage = () => {
   const fetchServiceRequests = async () => {
     try {
       setIsLoading(true);
+      console.log('Fetching service requests with filters:', { statusFilter, searchQuery });
       
       let query = supabase
         .from('ServiceRequest')
@@ -67,6 +68,8 @@ const ServiceRequestsPage = () => {
       const { data, error } = await query.order('createdat', { ascending: false });
       
       if (error) throw error;
+      
+      console.log('Service requests data:', data);
       
       const typedData = data as unknown as ServiceRequest[];
       setServiceRequests(typedData || []);

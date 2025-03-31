@@ -4,6 +4,7 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Server, Search, FileText, MessageSquare } from 'lucide-react';
 
 const ObserverDashboard = () => {
   const breadcrumbs = [
@@ -32,8 +33,9 @@ const ObserverDashboard = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card>
-            <CardHeader>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <Server className="h-6 w-6 mb-2 text-primary" />
               <CardTitle className="text-lg">Web Development</CardTitle>
             </CardHeader>
             <CardContent>
@@ -41,14 +43,15 @@ const ObserverDashboard = () => {
                 Custom websites built for performance, security, and user experience. 
                 From simple landing pages to complex web applications.
               </p>
-              <Button variant="outline" size="sm" asChild className="w-full">
-                <a href="/observer/explore/services">Learn More</a>
+              <Button variant="default" size="sm" asChild className="w-full">
+                <a href="/observer/explore/services">Browse Services</a>
               </Button>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <Search className="h-6 w-6 mb-2 text-primary" />
               <CardTitle className="text-lg">Digital Marketing</CardTitle>
             </CardHeader>
             <CardContent>
@@ -56,14 +59,15 @@ const ObserverDashboard = () => {
                 Comprehensive digital marketing strategies including SEO, 
                 content marketing, social media management, and PPC campaigns.
               </p>
-              <Button variant="outline" size="sm" asChild className="w-full">
-                <a href="/observer/explore/services">Learn More</a>
+              <Button variant="default" size="sm" asChild className="w-full">
+                <a href="/observer/explore/services">Browse Services</a>
               </Button>
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-3">
+              <FileText className="h-6 w-6 mb-2 text-primary" />
               <CardTitle className="text-lg">AI Integration</CardTitle>
             </CardHeader>
             <CardContent>
@@ -71,12 +75,41 @@ const ObserverDashboard = () => {
                 Enhance your web presence with AI-powered chatbots, recommendation systems,
                 content generation, and automation tools.
               </p>
-              <Button variant="outline" size="sm" asChild className="w-full">
-                <a href="/observer/explore/services">Learn More</a>
+              <Button variant="default" size="sm" asChild className="w-full">
+                <a href="/observer/explore/services">Browse Services</a>
               </Button>
             </CardContent>
           </Card>
         </div>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Get Started Today</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-6">
+              <p className="text-muted-foreground">
+                Ready to take your business to the next level? Browse our services and request 
+                the ones that match your needs. Our team will be in touch to discuss details and 
+                set everything up for you.
+              </p>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button asChild size="lg" className="flex-1">
+                <a href="/observer/explore/services">
+                  Browse Services
+                </a>
+              </Button>
+              <Button asChild variant="outline" size="lg" className="flex-1">
+                <a href="/observer/explore/contact">
+                  <MessageSquare className="mr-2 h-4 w-4" />
+                  Contact Sales
+                </a>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
         
         <Card>
           <CardHeader>

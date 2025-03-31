@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,6 +29,7 @@ import AdminClientServicesPage from "./pages/accounts/ClientServicesPage";
 import AdminClientProfilePage from "./pages/admin/AdminClientProfilePage";
 import AdminClientInvoicesPage from "./pages/admin/AdminClientInvoicesPage";
 import AdminClientSupportPage from "./pages/admin/AdminClientSupportPage";
+import ServiceRequestsPage from "./pages/admin/ServiceRequestsPage";
 
 // Admin Portfolio Pages
 import CategoriesPage from "./pages/portfolio/CategoriesPage";
@@ -122,6 +122,7 @@ const App = () => (
           {/* Admin Engagement Routes */}
           <Route path="/admin/engagements/content" element={<DashboardRoute element={<ContentManagementPage />} />} />
           <Route path="/admin/engagements/leads" element={<DashboardRoute element={<LeadManagementPage />} />} />
+          <Route path="/admin/engagements/service-requests" element={<DashboardRoute element={<ServiceRequestsPage />} />} />
           
           {/* Admin Settings */}
           <Route path="/admin/settings" element={<DashboardRoute element={<SettingsPage />} />} />

@@ -5,13 +5,14 @@ import StatsGrid from '@/components/dashboard/StatsGrid';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, CreditCard, BarChart2, Activity } from 'lucide-react';
+import { Users, CreditCard, BarChart2, Activity, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useState, useEffect } from 'react';
 
 const AdminDashboard = () => {
   const [clientCount, setClientCount] = useState<number>(0);
   const [recentClients, setRecentClients] = useState<any[]>([]);
+  const [serviceRequestsCount, setServiceRequestsCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
@@ -37,6 +38,16 @@ const AdminDashboard = () => {
         
         if (!recentClientsError && recentClientsData) {
           setRecentClients(recentClientsData);
+        }
+        
+        // Fetch pending service requests count
+        const { count: requestsCountResult, error: requestsCountError } = await supabase
+          .from('ServiceRequest')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'PENDING');
+          
+        if (!requestsCountError && requestsCountResult !== null) {
+          setServiceRequestsCount(requestsCountResult);
         }
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -76,11 +87,15 @@ const AdminDashboard = () => {
       trend: { value: 5, positive: true },
     },
     {
-      title: "System Health",
-      value: "99.8%",
-      icon: <Activity className="h-4 w-4" />,
-      description: "Last 30 days uptime",
-      trend: { value: 0.2, positive: true },
+      title: "Pending Requests",
+      value: isLoading ? "..." : serviceRequestsCount,
+      icon: <MessageSquare className="h-4 w-4" />,
+      description: "Service requests to process",
+      trend: { value: 0, positive: true },
+      action: {
+        label: "View",
+        href: "/admin/engagements/service-requests"
+      }
     },
   ];
 
@@ -91,6 +106,22 @@ const AdminDashboard = () => {
       title="Dashboard"
     >
       <div className="space-y-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage clients, services, and system operations
+            </p>
+          </div>
+          
+          <Button asChild>
+            <a href="/admin/engagements/service-requests">
+              <MessageSquare className="mr-2 h-4 w-4" />
+              View Service Requests
+            </a>
+          </Button>
+        </div>
+        
         <StatsGrid stats={stats} />
         
         <Tabs defaultValue="overview" className="w-full">
@@ -165,6 +196,20 @@ const AdminDashboard = () => {
                     </table>
                   </div>
                 )}
+                
+                <div className="mt-4 flex justify-between items-center">
+                  <div>
+                    <Button variant="outline" asChild>
+                      <a href="/admin/accounts/clients">View All Clients</a>
+                    </Button>
+                  </div>
+                  
+                  <div>
+                    <Button variant="default" asChild>
+                      <a href="/admin/engagements/service-requests">Service Requests</a>
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

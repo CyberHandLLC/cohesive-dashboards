@@ -342,51 +342,6 @@ const StaffLeadsPage: React.FC = () => {
     }
   ];
 
-  // Handlers for actions
-  const resetFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('all');
-    setSourceFilter('all');
-    setStartDate(undefined);
-    setEndDate(undefined);
-  };
-
-  const handleEdit = (lead: Lead) => {
-    // Navigate to the lead edit page or open a modal
-    console.log('Edit lead:', lead);
-    toast({
-      title: "Coming Soon",
-      description: "Lead editing will be available soon",
-    });
-  };
-
-  const handleDelete = (leadId: string) => {
-    // Delete the lead or open a confirmation dialog
-    console.log('Delete lead:', leadId);
-    toast({
-      title: "Coming Soon",
-      description: "Lead deletion will be available soon",
-    });
-  };
-
-  const handleConvert = (lead: Lead) => {
-    // Convert lead to client or open a dialog
-    console.log('Convert lead to client:', lead);
-    toast({
-      title: "Coming Soon",
-      description: "Lead conversion will be available soon",
-    });
-  };
-
-  const handleAssign = (lead: Lead) => {
-    // Open a dialog to assign the lead to another staff member
-    console.log('Assign lead:', lead);
-    toast({
-      title: "Coming Soon",
-      description: "Lead assignment will be available soon",
-    });
-  };
-
   return (
     <DashboardLayout
       breadcrumbs={breadcrumbs}

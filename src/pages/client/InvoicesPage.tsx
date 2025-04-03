@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,130 +11,88 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { AlertCircle, Search } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
+import { AlertCircle, Search, CalendarIcon } from 'lucide-react';
 import { useClientId } from '@/hooks/useClientId';
-import { formatDate, formatCurrency } from '@/lib/formatters';
-import { InvoiceStatus } from '@/types/invoice';
-import ServicesList from '@/components/client/ServicesList';
-import { ClientService } from '@/types/client';
+import { useClientInvoices } from '@/hooks/useClientInvoices';
+import { formatCurrency } from '@/lib/formatters';
+import InvoiceList from '@/components/client/InvoiceList';
+import InvoiceDetailsDialog from '@/components/invoices/InvoiceDetailsDialog';
+import ClientPaymentDialog from '@/components/client/ClientPaymentDialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const ClientInvoicesPage = () => {
-  const [services, setServices] = useState<ClientService[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [searchParams] = useSearchParams();
-  const clientIdParam = searchParams.get('clientId');
-  
   const { userId, clientId, isLoading: userIdLoading, error: userIdError } = useClientId();
-  const { toast } = useToast();
-  const navigate = useNavigate();
+  
+  const {
+    invoices,
+    isLoading,
+    searchTerm,
+    setSearchTerm,
+    statusFilter,
+    setStatusFilter,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    resetFilters,
+    fetchInvoices,
+    viewingInvoice,
+    setViewingInvoice,
+    payingInvoice,
+    setPayingInvoice,
+    processPayment,
+    isSubmitting
+  } = useClientInvoices(clientId);
   
   const breadcrumbs = [
     { label: 'Client', href: '/client' },
     { label: 'Accounts', href: '/client/accounts' },
-    { label: 'Services' }
+    { label: 'Invoices' }
   ];
 
+  // Get summary metrics
+  const totalInvoices = invoices.length;
+  const totalPaid = invoices.filter(inv => inv.status === 'PAID').reduce((sum, inv) => sum + inv.amount, 0);
+  const totalOutstanding = invoices.filter(inv => inv.status === 'PENDING' || inv.status === 'OVERDUE').reduce((sum, inv) => sum + inv.amount, 0);
+  const overdueInvoices = invoices.filter(inv => inv.status === 'OVERDUE').length;
+
+  // Fetch invoices when client ID is available or filters change
   useEffect(() => {
     if (clientId) {
-      fetchServices();
+      fetchInvoices();
     }
-  }, [clientId, searchQuery, statusFilter, clientIdParam]);
+  }, [clientId, searchTerm, statusFilter, startDate, endDate]);
 
-  const fetchServices = async () => {
-    if (!clientId) return;
-    
-    setIsLoading(true);
-    
-    try {
-      let query = supabase
-        .from('ClientService')
-        .select(`
-          id, 
-          clientId, 
-          serviceId, 
-          status, 
-          price, 
-          startDate, 
-          endDate, 
-          createdAt,
-          updatedAt,
-          service: Service (
-            name, 
-            description, 
-            price, 
-            monthlyPrice, 
-            features, 
-            customFields
-          )
-        `)
-        .eq('clientId', clientId);
-      
-      // Apply filters
-      if (statusFilter && statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
-      }
-      
-      if (searchQuery) {
-        query = query.or(`service.name.ilike.%${searchQuery}%,service.description.ilike.%${searchQuery}%`);
-      }
-      
-      const { data, error } = await query.order('createdAt', { ascending: false });
-      
-      if (error) throw error;
-      
-      setServices(data as ClientService[]);
-    } catch (error) {
-      console.error('Error fetching services:', error);
-      toast({
-        title: "Error",
-        description: "Could not fetch service data",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+  // Filter invoices
+  const filteredInvoices = invoices.filter(invoice => {
+    // Status filter
+    if (statusFilter && invoice.status !== statusFilter) {
+      return false;
     }
-  };
-
-  const resetFilters = () => {
-    setSearchQuery('');
-    setStatusFilter('all');
-  };
-
-  const filterInvoices = (invoices: ClientService[]) => {
-    return invoices.filter(invoice => {
-      // Status filter
-      if (statusFilter !== 'all' && invoice.status !== statusFilter) {
+    
+    // Search filter
+    if (searchTerm) {
+      const searchTermLower = searchTerm.toLowerCase();
+      const invoiceNumber = invoice.invoiceNumber || invoice.id.slice(0, 8);
+      if (!invoiceNumber.toLowerCase().includes(searchTermLower)) {
         return false;
       }
-      
-      // Search filter
-      if (searchQuery) {
-        const searchTermLower = searchQuery.toLowerCase();
-        if (
-          !invoice.service?.name?.toLowerCase().includes(searchTermLower) &&
-          !invoice.service?.description?.toLowerCase().includes(searchTermLower)
-        ) {
-          return false;
-        }
-      }
-      
-      return true;
-    });
+    }
+    
+    return true;
+  });
+
+  // Handle viewing invoice details
+  const handleViewDetails = (invoice: any) => {
+    setViewingInvoice(invoice);
   };
 
-  const filteredInvoices = filterInvoices(services);
-
-  const handleViewDetails = (service: ClientService) => {
-    // Navigate to the service details page or open a modal
-    console.log('View service details:', service);
-    toast({
-      title: "Coming Soon",
-      description: "Service details will be available soon",
-    });
+  // Handle paying an invoice
+  const handlePayInvoice = (invoice: any) => {
+    setPayingInvoice(invoice);
   };
 
   // Display loading or error state if needed
@@ -188,11 +146,50 @@ const ClientInvoicesPage = () => {
     <DashboardLayout
       breadcrumbs={breadcrumbs}
       role="client"
-      title="Service Management"
+      title="Invoice Management"
     >
       <div className="space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Assigned Services</h1>
+          <h1 className="text-2xl font-bold">Your Invoices</h1>
+        </div>
+        
+        {/* Invoice Summary Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalInvoices}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Paid Invoices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">{formatCurrency(totalPaid)}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Outstanding Balance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-600">{formatCurrency(totalOutstanding)}</div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Overdue Invoices</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">{overdueInvoices}</div>
+            </CardContent>
+          </Card>
         </div>
         
         {/* Filters */}
@@ -202,26 +199,63 @@ const ClientInvoicesPage = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
-                  placeholder="Search services by name, description..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by invoice number..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
                 />
               </div>
               <div className="flex gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select 
+                  value={statusFilter || 'ALL'} 
+                  onValueChange={(value) => value === 'ALL' ? setStatusFilter(null) : setStatusFilter(value as any)}
+                >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="ACTIVE">Active</SelectItem>
+                    <SelectItem value="ALL">All Statuses</SelectItem>
                     <SelectItem value="PENDING">Pending</SelectItem>
-                    <SelectItem value="EXPIRED">Expired</SelectItem>
-                    <SelectItem value="SUSPENDED">Suspended</SelectItem>
+                    <SelectItem value="PAID">Paid</SelectItem>
+                    <SelectItem value="OVERDUE">Overdue</SelectItem>
+                    <SelectItem value="CANCELED">Canceled</SelectItem>
                   </SelectContent>
                 </Select>
-                {(searchQuery || statusFilter !== 'all') && (
+                
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[240px] justify-start text-left font-normal",
+                        !startDate && !endDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {startDate && endDate ? (
+                        `${format(startDate, "MMM d, yyyy")} - ${format(endDate, "MMM d, yyyy")}`
+                      ) : (
+                        "Select date range"
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="range"
+                      selected={{
+                        from: startDate || undefined,
+                        to: endDate || undefined,
+                      }}
+                      onSelect={(range) => {
+                        setStartDate(range?.from || null);
+                        setEndDate(range?.to || null);
+                      }}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+                
+                {(searchTerm || statusFilter || startDate || endDate) && (
                   <Button variant="outline" onClick={resetFilters}>
                     Reset Filters
                   </Button>
@@ -231,22 +265,40 @@ const ClientInvoicesPage = () => {
           </CardContent>
         </Card>
         
-        {/* Service List */}
+        {/* Invoice List */}
         <Card>
           <CardHeader>
-            <CardTitle>Services</CardTitle>
+            <CardTitle>Invoices</CardTitle>
           </CardHeader>
           <CardContent>
-            <ServicesList
-              services={filteredInvoices}
+            <InvoiceList
+              invoices={filteredInvoices}
               isLoading={isLoading}
               onViewDetails={handleViewDetails}
+              onPayInvoice={handlePayInvoice}
               onResetFilters={resetFilters}
-              hasFilters={searchQuery !== '' || statusFilter !== 'all'}
+              hasFilters={!!searchTerm || !!statusFilter || !!startDate || !!endDate}
             />
           </CardContent>
         </Card>
       </div>
+      
+      {/* Invoice Details Dialog */}
+      <InvoiceDetailsDialog
+        invoice={viewingInvoice}
+        open={!!viewingInvoice}
+        onOpenChange={(open) => !open && setViewingInvoice(null)}
+        onMarkAsPaid={() => viewingInvoice && handlePayInvoice(viewingInvoice)}
+      />
+      
+      {/* Payment Dialog */}
+      <ClientPaymentDialog
+        invoice={payingInvoice}
+        open={!!payingInvoice}
+        onOpenChange={(open) => !open && setPayingInvoice(null)}
+        onSubmit={processPayment}
+        isSubmitting={isSubmitting}
+      />
     </DashboardLayout>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useParams } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, AlertCircle, Edit, Trash2 } from 'lucide-react';
@@ -41,7 +41,8 @@ interface Invoice {
 
 const AdminClientInvoicesPage = () => {
   const [searchParams] = useSearchParams();
-  const clientId = searchParams.get('clientId');
+  const { id: paramId } = useParams<{ id: string }>();
+  const clientId = paramId || searchParams.get('clientId');
   const [client, setClient] = useState<{ companyName: string } | null>(null);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -60,16 +61,23 @@ const AdminClientInvoicesPage = () => {
   
   const subMenuItems: SubMenuItem[] = [
     { label: 'Overview', href: `/admin/accounts/clients/${clientId}/overview`, value: 'overview' },
-    { label: 'Services', href: `/admin/accounts/clients/services?clientId=${clientId}`, value: 'services' },
-    { label: 'Invoices', href: `/admin/accounts/clients/invoices?clientId=${clientId}`, value: 'invoices' },
-    { label: 'Support', href: `/admin/accounts/clients/support?clientId=${clientId}`, value: 'support' },
-    { label: 'Contacts', href: `/admin/accounts/clients/contacts?clientId=${clientId}`, value: 'contacts' },
+    { label: 'Services', href: `/admin/accounts/clients/${clientId}/services`, value: 'services' },
+    { label: 'Invoices', href: `/admin/accounts/clients/${clientId}/invoices`, value: 'invoices' },
+    { label: 'Support', href: `/admin/accounts/clients/${clientId}/support`, value: 'support' },
+    { label: 'Contacts', href: `/admin/accounts/clients/${clientId}/contacts`, value: 'contacts' },
   ];
 
   useEffect(() => {
     if (clientId) {
       fetchClientDetails();
       fetchInvoices();
+    } else {
+      setIsLoading(false);
+      toast({
+        title: "Error",
+        description: "No client ID provided",
+        variant: "destructive",
+      });
     }
   }, [clientId]);
 
@@ -113,10 +121,20 @@ const AdminClientInvoicesPage = () => {
           variant: "destructive",
         });
       } else {
-        setInvoices(data as Invoice[]);
+        // Handle the database status ("CANCELED") vs type definition ("CANCELLED") discrepancy
+        const normalizedInvoices = (data || []).map(invoice => ({
+          ...invoice,
+          status: invoice.status === 'CANCELED' ? 'CANCELLED' as InvoiceStatus : invoice.status as InvoiceStatus
+        }));
+        setInvoices(normalizedInvoices);
       }
     } catch (error) {
       console.error('Error in invoice fetch operation:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }

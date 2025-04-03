@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,8 +11,60 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Search, Bell, LogOut, User, Settings } from 'lucide-react';
 import MainNav from '@/components/navigation/MainNav';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/components/ui/use-toast';
 
 const DashboardHeader = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      // Log the logout action in AuditLog
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user) {
+        await supabase
+          .from('AuditLog')
+          .insert({
+            userId: userData.user.id,
+            action: 'LOGOUT',
+            resource: 'AUTH',
+            details: { message: 'User logged out successfully' },
+            timestamp: new Date()
+          });
+      }
+
+      // Clear any sessions in the Session table
+      if (userData?.user) {
+        await supabase
+          .from('Session')
+          .update({ status: 'EXPIRED' })
+          .eq('userId', userData.user.id)
+          .eq('status', 'ACTIVE');
+      }
+
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      // Show success toast
+      toast({
+        title: "Logged out successfully",
+        description: "You have been logged out of your account",
+      });
+
+      // Redirect to login page
+      navigate('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Logout failed",
+        description: "An error occurred while logging out",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <header className="border-b border-border bg-background">
       <div className="flex h-16 items-center px-4">
@@ -61,7 +112,10 @@ const DashboardHeader = () => {
                   <span>Settings</span>
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem className="flex items-center text-destructive">
+              <DropdownMenuItem 
+                className="flex items-center text-destructive cursor-pointer"
+                onClick={handleLogout}
+              >
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Log out</span>
               </DropdownMenuItem>

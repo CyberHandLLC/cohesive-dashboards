@@ -1,11 +1,11 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Service } from '@/hooks/useServices';
@@ -33,7 +33,6 @@ const formSchema = z.object({
   ),
   categoryId: z.string().min(1, { message: "Category is required" }),
   features: z.array(z.string()).default([]),
-  availability: z.enum(['ACTIVE', 'DISCONTINUED', 'COMING_SOON']).default('ACTIVE'),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -57,22 +56,43 @@ export function ServiceFormDialog({
   const [featureInput, setFeatureInput] = useState('');
   const [customFieldKey, setCustomFieldKey] = useState('');
   const [customFieldValue, setCustomFieldValue] = useState('');
-  const [customFields, setCustomFields] = useState<Record<string, string>>(
-    initialData?.customFields as Record<string, string> || {}
-  );
+  const [customFields, setCustomFields] = useState<Record<string, string>>({});
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name || '',
-      description: initialData?.description || '',
-      price: initialData?.price || undefined,
-      monthlyPrice: initialData?.monthlyPrice || undefined,
-      categoryId: initialData?.categoryId || '',
-      features: initialData?.features || [],
-      availability: initialData?.availability || 'ACTIVE',
+      name: '',
+      description: '',
+      price: undefined,
+      monthlyPrice: undefined,
+      categoryId: '',
+      features: [],
     },
   });
+
+  // Update form values when initialData changes or when dialog opens
+  useEffect(() => {
+    if (open && initialData) {
+      form.reset({
+        name: initialData.name || '',
+        description: initialData.description || '',
+        price: initialData.price || undefined,
+        monthlyPrice: initialData.monthlyPrice || undefined,
+        categoryId: initialData.categoryId || '',
+        features: initialData.features || [],
+      });
+      
+      // Update custom fields when initialData changes
+      setCustomFields(initialData.customFields as Record<string, string> || {});
+    } else if (!open) {
+      // Reset form when dialog closes
+      form.reset();
+      setCustomFields({});
+      setFeatureInput('');
+      setCustomFieldKey('');
+      setCustomFieldValue('');
+    }
+  }, [open, initialData, form]);
 
   const features = form.watch('features') || [];
 
@@ -113,6 +133,10 @@ export function ServiceFormDialog({
       customFields: Object.keys(customFields).length > 0 ? customFields : undefined,
     };
     onSubmit(formattedValues);
+  };
+
+  const handleCancel = () => {
+    onOpenChange(false);
   };
 
   return (
@@ -183,7 +207,7 @@ export function ServiceFormDialog({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select a category" />
@@ -249,74 +273,57 @@ export function ServiceFormDialog({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="availability"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Availability</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select availability" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="ACTIVE">Active</SelectItem>
-                      <SelectItem value="DISCONTINUED">Discontinued</SelectItem>
-                      <SelectItem value="COMING_SOON">Coming Soon</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="space-y-2">
               <FormLabel>Custom Fields</FormLabel>
               <div className="flex space-x-2">
                 <Input 
-                  placeholder="Key" 
-                  value={customFieldKey}
+                  placeholder="Field name" 
+                  value={customFieldKey} 
                   onChange={(e) => setCustomFieldKey(e.target.value)} 
                 />
                 <Input 
                   placeholder="Value" 
-                  value={customFieldValue}
-                  onChange={(e) => setCustomFieldValue(e.target.value)} 
+                  value={customFieldValue} 
+                  onChange={(e) => setCustomFieldValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustomField();
+                    }
+                  }}
                 />
                 <Button type="button" size="sm" onClick={addCustomField}>
                   <PlusCircle className="h-4 w-4" />
                 </Button>
               </div>
-              
-              <div className="mt-2">
-                {Object.keys(customFields).length === 0 ? (
+              <div className="mt-2 space-y-1">
+                {Object.entries(customFields).length === 0 ? (
                   <p className="text-sm text-muted-foreground">No custom fields added</p>
                 ) : (
-                  <div className="space-y-1">
-                    {Object.entries(customFields).map(([key, value]) => (
-                      <div key={key} className="flex items-center justify-between bg-muted p-2 rounded-md">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{key}</Badge>
-                          <span className="text-sm">{value}</span>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeCustomField(key)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                  Object.entries(customFields).map(([key, value]) => (
+                    <div key={key} className="flex items-center justify-between bg-muted p-2 rounded-md">
+                      <div>
+                        <span className="text-sm font-medium">{key}:</span>
+                        <span className="text-sm ml-2">{value}</span>
                       </div>
-                    ))}
-                  </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeCustomField(key)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
-            
+
             <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" onClick={handleCancel}>Cancel</Button>
+              </DialogClose>
               <Button type="submit">Save</Button>
             </DialogFooter>
           </form>

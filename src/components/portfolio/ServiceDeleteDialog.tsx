@@ -1,4 +1,3 @@
-
 import React from 'react';
 import {
   AlertDialog,
@@ -44,30 +43,31 @@ export function ServiceDeleteDialog({
             <AlertCircle className="h-5 w-5 text-destructive" />
             Delete Service
           </AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2">
-            <p>
-              Are you sure you want to delete the service "{service.name}"? This action cannot be undone.
-            </p>
-            
-            {hasWarnings && (
-              <div className="mt-2 p-3 bg-destructive/10 rounded-md text-destructive font-medium space-y-2">
-                <p className="font-bold">Warning:</p>
-                
-                {hasTiers && (
-                  <p>
-                    This service has {tierCount} {tierCount === 1 ? 'tier' : 'tiers'} that will also be deleted.
-                  </p>
-                )}
-                
-                {hasClients && (
-                  <p>
-                    This service is currently used by {clientCount} {clientCount === 1 ? 'client' : 'clients'}. 
-                    Deleting it will affect their service subscriptions.
-                  </p>
-                )}
-              </div>
-            )}
+          
+          {/* Use a simple text content without div wrappers for AlertDialogDescription */}
+          <AlertDialogDescription>
+            Are you sure you want to delete the service "{service.name}"? This action cannot be undone.
           </AlertDialogDescription>
+          
+          {/* Move the warnings outside of AlertDialogDescription */}
+          {hasWarnings && (
+            <div className="mt-4 p-3 bg-destructive/10 rounded-md text-destructive font-medium space-y-2">
+              <div className="font-bold">Warning:</div>
+              
+              {hasTiers && (
+                <div>
+                  This service has {tierCount} {tierCount === 1 ? 'tier' : 'tiers'} that will also be deleted.
+                </div>
+              )}
+              
+              {hasClients && (
+                <div>
+                  This service is currently used by {clientCount} {clientCount === 1 ? 'client' : 'clients'}. 
+                  Deleting it will affect their service subscriptions.
+                </div>
+              )}
+            </div>
+          )}
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>

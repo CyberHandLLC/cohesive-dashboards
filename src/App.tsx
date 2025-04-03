@@ -34,11 +34,15 @@ import ServiceRequestsPage from "./pages/admin/ServiceRequestsPage";
 // Admin Portfolio Pages
 import CategoriesPage from "./pages/portfolio/CategoriesPage";
 import ServicesPage from "./pages/portfolio/ServicesPage";
+import ServiceDetailPage from "./pages/portfolio/ServiceDetailPage";
 import PackagesPage from "./pages/portfolio/PackagesPage";
 import PackageDetailsPage from "./pages/portfolio/PackageDetailsPage";
+import ServiceExpirationPage from "./pages/admin/ServiceExpirationPage";
+import ServiceDashboardsPage from "./pages/admin/services/ServiceDashboardsPage";
 
 // Admin Document Pages
 import InvoicesPage from "./pages/documents/InvoicesPage";
+import RecurringBillingPage from "./pages/documents/RecurringBillingPage";
 import ReportsPage from "./pages/documents/ReportsPage";
 
 // Admin Engagement Pages
@@ -60,6 +64,13 @@ import ObserverContactPage from "./pages/observer/ContactPage";
 
 // Add import for the new StaffDetailsPage
 import StaffDetailsPage from "./pages/accounts/StaffDetailsPage";
+
+// Service Dashboard Pages
+import ClientServiceDashboardPage from "./pages/services/ClientServiceDashboardPage";
+
+// Service Lifecycle Pages
+import AdminServiceLifecyclePage from "./pages/admin/services/ServiceLifecyclePage";
+import ClientServiceLifecyclePage from "./pages/client/services/ServiceLifecyclePage";
 
 // Staff Pages
 import StaffClientsPage from "./pages/staff/StaffClientsPage";
@@ -106,17 +117,28 @@ const App = () => (
           <Route path="/admin/accounts/clients/:id/support" element={<DashboardRoute element={<AdminClientSupportPage />} />} />
           <Route path="/admin/accounts/clients/:id/contacts" element={<DashboardRoute element={<ClientContactsPage />} />} />
           
+          {/* Service Dashboard Routes */}
+          <Route path="/admin/accounts/clients/:clientId/service-dashboard" element={<DashboardRoute element={<ClientServiceDashboardPage />} />} />
+          <Route path="/admin/accounts/clients/:clientId/service-dashboard/:serviceId" element={<DashboardRoute element={<ClientServiceDashboardPage />} />} />
+          
+          {/* Service Lifecycle Routes - Admin */}
+          <Route path="/admin/accounts/clients/:clientId/services/:serviceId/lifecycle" element={<DashboardRoute element={<AdminServiceLifecyclePage />} />} />
+          
           {/* Add the collective support page route */}
           <Route path="/admin/accounts/clients/support" element={<DashboardRoute element={<AdminClientSupportPage />} />} />
           
           {/* Admin Portfolio Routes */}
           <Route path="/admin/portfolio/categories" element={<DashboardRoute element={<CategoriesPage />} />} />
           <Route path="/admin/portfolio/services" element={<DashboardRoute element={<ServicesPage />} />} />
+          <Route path="/admin/portfolio/services/:id" element={<DashboardRoute element={<ServiceDetailPage />} />} />
           <Route path="/admin/portfolio/packages" element={<DashboardRoute element={<PackagesPage />} />} />
           <Route path="/admin/portfolio/packages/:id" element={<DashboardRoute element={<PackageDetailsPage />} />} />
+          <Route path="/admin/portfolio/service-expirations" element={<DashboardRoute element={<ServiceExpirationPage />} />} />
+          <Route path="/admin/portfolio/service-dashboards" element={<DashboardRoute element={<ServiceDashboardsPage />} />} />
           
           {/* Admin Document Routes */}
           <Route path="/admin/documents/invoices" element={<DashboardRoute element={<InvoicesPage />} />} />
+          <Route path="/admin/documents/recurring-billing" element={<DashboardRoute element={<RecurringBillingPage />} />} />
           <Route path="/admin/documents/reports" element={<DashboardRoute element={<ReportsPage />} />} />
           
           {/* Admin Engagement Routes */}
@@ -137,6 +159,11 @@ const App = () => (
           {/* Client Routes */}
           <Route path="/client" element={<DashboardRoute element={<ClientDashboard />} />} />
           <Route path="/client/accounts/services" element={<DashboardRoute element={<ClientServicePage />} />} />
+          <Route path="/client/accounts/services/dashboard/:serviceId" element={<DashboardRoute element={<ClientServiceDashboardPage />} />} />
+          
+          {/* Service Lifecycle Routes - Client */}
+          <Route path="/client/accounts/services/:serviceId/lifecycle" element={<DashboardRoute element={<ClientServiceLifecyclePage />} />} />
+          
           <Route path="/client/accounts/invoices" element={<DashboardRoute element={<ClientInvoicesPage />} />} />
           <Route path="/client/accounts/support" element={<DashboardRoute element={<ClientSupportPage />} />} />
           <Route path="/client/accounts/profile" element={<DashboardRoute element={<ClientProfilePage />} />} />

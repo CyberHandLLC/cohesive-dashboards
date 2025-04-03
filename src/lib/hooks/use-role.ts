@@ -4,8 +4,9 @@ import { UserRole as Role } from '@/types/user';
 
 export type UserRole = Role | null;
 
-export const useRole = (): { role: UserRole, isLoading: boolean } => {
+export const useRole = (): { role: UserRole, userId: string | null, isLoading: boolean } => {
   const [role, setRole] = useState<UserRole>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   
   useEffect(() => {
@@ -14,9 +15,13 @@ export const useRole = (): { role: UserRole, isLoading: boolean } => {
       
       if (!session) {
         setRole(null);
+        setUserId(null);
         setIsLoading(false);
         return;
       }
+      
+      // Set the userId from the session
+      setUserId(session.user.id);
       
       const { data, error } = await supabase
         .from('User')
@@ -47,5 +52,5 @@ export const useRole = (): { role: UserRole, isLoading: boolean } => {
     };
   }, []);
   
-  return { role, isLoading };
+  return { role, userId, isLoading };
 };

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,26 +66,43 @@ export const useServices = (filters?: { categoryId?: string; searchTerm?: string
       // Get client usage counts
       const serviceIds = (data as Service[]).map(service => service.id);
       if (serviceIds.length > 0) {
-        const { data: clientServiceCounts, error: countError } = await supabase
-          .from('ClientService')
-          .select('serviceId, count')
-          .in('serviceId', serviceIds)
-          .eq('status', 'ACTIVE')
-          .then(result => {
-            if (result.error) return { data: null, error: result.error };
-            
-            // Process results to get counts by serviceId
-            const countsByServiceId: Record<string, number> = {};
-            result.data.forEach(row => {
-              countsByServiceId[row.serviceId] = parseInt(row.count);
-            });
-            
-            return { data: countsByServiceId, error: null };
-          });
-          
-        if (!countError && clientServiceCounts) {
-          setClientCounts(clientServiceCounts);
+        // Process in smaller batches to avoid URL length limits
+        const batchSize = 5;
+        const batches: string[][] = [];
+        
+        // Split serviceIds into smaller batches
+        for (let i = 0; i < serviceIds.length; i += batchSize) {
+          batches.push(serviceIds.slice(i, i + batchSize));
         }
+        
+        const countsByServiceId: Record<string, number> = {};
+        
+        // Set initial count of 0 for all services
+        serviceIds.forEach(id => {
+          countsByServiceId[id] = 0;
+        });
+        
+        // Process each batch
+        for (const batch of batches) {
+          for (const serviceId of batch) {
+            try {
+              // Count active client services for this service ID
+              const { count, error } = await supabase
+                .from('ClientService')
+                .select('*', { count: 'exact', head: true })
+                .eq('serviceId', serviceId)
+                .eq('status', 'ACTIVE');
+                
+              if (!error && count !== null) {
+                countsByServiceId[serviceId] = count;
+              }
+            } catch (error) {
+              console.error(`Error counting clients for service ${serviceId}:`, error);
+            }
+          }
+        }
+        
+        setClientCounts(countsByServiceId);
       }
       
       return data as Service[];
@@ -104,7 +120,7 @@ export const useServices = (filters?: { categoryId?: string; searchTerm?: string
       if (error) throw error;
       return data[0];
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       toast({
         title: 'Service created',
@@ -118,7 +134,7 @@ export const useServices = (filters?: { categoryId?: string; searchTerm?: string
         .insert({
           action: 'CREATE',
           resource: 'SERVICE',
-          userId: supabase.auth.getUser()?.data?.user?.id || '',
+          userId: (await supabase.auth.getUser()).data?.user?.id || '',
           details: { message: 'Service created' }
         })
         .then(({ error }) => {
@@ -149,7 +165,7 @@ export const useServices = (filters?: { categoryId?: string; searchTerm?: string
       if (error) throw error;
       return data[0];
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       toast({
         title: 'Service updated',
@@ -163,7 +179,7 @@ export const useServices = (filters?: { categoryId?: string; searchTerm?: string
         .insert({
           action: 'UPDATE',
           resource: 'SERVICE',
-          userId: supabase.auth.getUser()?.data?.user?.id || '',
+          userId: (await supabase.auth.getUser()).data?.user?.id || '',
           details: { message: 'Service updated' }
         })
         .then(({ error }) => {
@@ -193,20 +209,62 @@ export const useServices = (filters?: { categoryId?: string; searchTerm?: string
       
       if (countError) throw countError;
       
+      // Get all service requests for this service for logging
+      const { data: serviceRequests, error: serviceRequestError } = await supabase
+        .from('ServiceRequest')
+        .select('id, status')
+        .eq('serviceid', id);
+      
+      if (serviceRequestError) throw serviceRequestError;
+      
+      const serviceRequestCount = serviceRequests?.length || 0;
+      
+      // Check for non-approved service requests
+      const pendingRequests = serviceRequests?.filter(req => req.status !== 'APPROVED') || [];
+      if (pendingRequests.length > 0) {
+        throw new Error(`Cannot delete service: It has ${pendingRequests.length} pending or non-approved service ${pendingRequests.length === 1 ? 'request' : 'requests'}.`);
+      }
+      
+      // Delete all service requests for this service
+      if (serviceRequestCount > 0) {
+        const { error: deleteRequestsError } = await supabase
+          .from('ServiceRequest')
+          .delete()
+          .eq('serviceid', id);
+        
+        if (deleteRequestsError) {
+          console.error('Error deleting service requests:', deleteRequestsError);
+          throw deleteRequestsError;
+        }
+      }
+      
+      // Check if there are service tiers associated with this service
+      // Delete service tiers first (cascade delete)
+      const { error: tierDeleteError } = await supabase
+        .from('ServiceTier')
+        .delete()
+        .eq('serviceId', id);
+      
+      if (tierDeleteError) throw tierDeleteError;
+      
+      // Delete the service
       const { error } = await supabase
         .from('Service')
         .delete()
         .eq('id', id);
       
       if (error) throw error;
-      return { id, clientServiceCount };
+      return { id, clientServiceCount, serviceRequestCount };
     },
-    onSuccess: ({ id, clientServiceCount }) => {
+    onSuccess: async ({ id, clientServiceCount, serviceRequestCount }) => {
       queryClient.invalidateQueries({ queryKey: ['services'] });
       
       let message = 'The service has been deleted successfully';
       if (clientServiceCount && clientServiceCount > 0) {
         message += `. ${clientServiceCount} client ${clientServiceCount === 1 ? 'subscription was' : 'subscriptions were'} affected.`;
+      }
+      if (serviceRequestCount > 0) {
+        message += ` ${serviceRequestCount} service ${serviceRequestCount === 1 ? 'request was' : 'requests were'} also removed.`;
       }
       
       toast({
@@ -218,20 +276,16 @@ export const useServices = (filters?: { categoryId?: string; searchTerm?: string
       setServiceToDelete(null);
       
       // Log action in audit log
-      supabase
+      await supabase
         .from('AuditLog')
         .insert({
           action: 'DELETE',
           resource: 'SERVICE',
-          userId: supabase.auth.getUser()?.data?.user?.id || '',
+          userId: (await supabase.auth.getUser()).data?.user?.id || '',
           details: { 
             message: 'Service deleted', 
-            clientServicesAffected: clientServiceCount || 0
-          }
-        })
-        .then(({ error }) => {
-          if (error) {
-            console.error('Error logging action:', error);
+            clientServicesAffected: clientServiceCount || 0,
+            serviceRequestsRemoved: serviceRequestCount || 0
           }
         });
     },
@@ -239,7 +293,7 @@ export const useServices = (filters?: { categoryId?: string; searchTerm?: string
       console.error('Error deleting service:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete service',
+        description: error instanceof Error ? error.message : 'Failed to delete service',
         variant: 'destructive',
       });
     }

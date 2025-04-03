@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
@@ -20,11 +19,20 @@ interface SidebarNavProps {
   role?: 'admin' | 'staff' | 'client' | 'observer';
 }
 
+interface NavItem {
+  title: string;
+  icon: React.ElementType;
+  path?: string;
+  active: boolean;
+  isCategory?: boolean;
+  subItems?: { title: string; path: string }[];
+}
+
 const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
   const location = useLocation();
 
   // Admin navigation items
-  const adminItems = [
+  const adminItems: NavItem[] = [
     {
       title: 'Dashboard',
       icon: Home,
@@ -34,7 +42,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
     {
       title: 'Accounts',
       icon: Users,
-      path: '/admin/accounts',
+      isCategory: true,
       active: location.pathname.startsWith('/admin/accounts'),
       subItems: [
         { title: 'Clients', path: '/admin/accounts/clients' },
@@ -45,28 +53,31 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
     {
       title: 'Portfolio',
       icon: PieChart,
-      path: '/admin/portfolio',
+      isCategory: true,
       active: location.pathname.startsWith('/admin/portfolio'),
       subItems: [
         { title: 'Categories', path: '/admin/portfolio/categories' },
         { title: 'Services', path: '/admin/portfolio/services' },
         { title: 'Packages', path: '/admin/portfolio/packages' },
+        { title: 'Service Expirations', path: '/admin/portfolio/service-expirations' },
+        { title: 'Service Dashboards', path: '/admin/portfolio/service-dashboards' },
       ],
     },
     {
       title: 'Documents',
       icon: FileText,
-      path: '/admin/documents',
+      isCategory: true,
       active: location.pathname.startsWith('/admin/documents'),
       subItems: [
         { title: 'Invoices', path: '/admin/documents/invoices' },
+        { title: 'Recurring Billing', path: '/admin/documents/recurring-billing' },
         { title: 'Reports', path: '/admin/documents/reports' },
       ],
     },
     {
       title: 'Engagements',
       icon: Target,
-      path: '/admin/engagements',
+      isCategory: true,
       active: location.pathname.startsWith('/admin/engagements'),
       subItems: [
         { title: 'Service Requests', path: '/admin/engagements/service-requests' },
@@ -83,7 +94,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
   ];
 
   // Staff navigation items - updated based on requirements
-  const staffItems = [
+  const staffItems: NavItem[] = [
     {
       title: 'Dashboard',
       icon: Home,
@@ -93,7 +104,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
     {
       title: 'Accounts',
       icon: Users,
-      path: '/staff/accounts',
+      isCategory: true,
       active: location.pathname.startsWith('/staff/accounts'),
       subItems: [
         { title: 'Clients', path: '/staff/accounts/clients' },
@@ -123,7 +134,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
   ];
 
   // Client navigation items
-  const clientItems = [
+  const clientItems: NavItem[] = [
     {
       title: 'Dashboard',
       icon: Home,
@@ -133,7 +144,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
     {
       title: 'Accounts',
       icon: Users,
-      path: '/client/accounts',
+      isCategory: true,
       active: location.pathname.startsWith('/client/accounts'),
       subItems: [
         { title: 'Services', path: '/client/accounts/services' },
@@ -145,7 +156,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
   ];
 
   // Observer navigation items
-  const observerItems = [
+  const observerItems: NavItem[] = [
     {
       title: 'Dashboard',
       icon: Home,
@@ -155,7 +166,7 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
     {
       title: 'Explore',
       icon: PieChart,
-      path: '/observer/explore',
+      isCategory: true,
       active: location.pathname.startsWith('/observer/explore'),
       subItems: [
         { title: 'Services', path: '/observer/explore/services' },
@@ -184,15 +195,27 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton 
-                  asChild 
-                  isActive={item.active}
-                >
-                  <Link to={item.path}>
+                {item.isCategory ? (
+                  // Category items - not clickable
+                  <SidebarMenuButton 
+                    isActive={item.active}
+                    className="cursor-default"
+                  >
                     <item.icon />
                     <span>{item.title}</span>
-                  </Link>
-                </SidebarMenuButton>
+                  </SidebarMenuButton>
+                ) : (
+                  // Regular menu items - clickable links
+                  <SidebarMenuButton 
+                    asChild 
+                    isActive={item.active}
+                  >
+                    <Link to={item.path || '#'}>
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                )}
                 
                 {item.subItems && (
                   <SidebarMenuSub>
@@ -202,7 +225,9 @@ const SidebarNav = ({ role = 'admin' }: SidebarNavProps) => {
                           asChild
                           isActive={location.pathname === subItem.path}
                         >
-                          <Link to={subItem.path}>{subItem.title}</Link>
+                          <Link to={subItem.path}>
+                            {subItem.title}
+                          </Link>
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
                     ))}

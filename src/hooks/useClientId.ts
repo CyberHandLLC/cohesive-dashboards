@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useRole } from '@/lib/hooks/use-role';
 import { supabase } from '@/integrations/supabase/client';
@@ -27,18 +26,33 @@ export function useClientId(): ClientIdData {
       }
 
       try {
-        if (role === 'CLIENT') {
-          // Fetch clientId for client role
-          const { data: userData, error: userError } = await supabase
-            .from('User')
-            .select('clientId')
-            .eq('id', userId)
-            .single();
+        // First try to get user data regardless of role to ensure we have clientId
+        const { data: userData, error: userError } = await supabase
+          .from('User')
+          .select('clientId, role')
+          .eq('id', userId)
+          .single();
 
-          if (userError) throw new Error('Could not fetch client information');
-          
-          setClientId(userData?.clientId || null);
-        } else if (role === 'STAFF') {
+        if (userError) {
+          console.error('Error fetching user data:', userError);
+          throw new Error('Could not fetch user information');
+        }
+        
+        // Set clientId from user data if available
+        if (userData?.clientId) {
+          setClientId(userData.clientId);
+        }
+        
+        // Check role (case-insensitive)
+        const userRole = userData?.role?.toUpperCase() || role?.toUpperCase();
+        
+        if (userRole === 'CLIENT') {
+          // We already set clientId from the userData above
+          if (!userData?.clientId) {
+            // Log this issue but don't throw an error
+            console.warn('Client user without clientId association:', userId);
+          }
+        } else if (userRole === 'STAFF') {
           // Fetch staffId for staff role
           const { data: staffData, error: staffError } = await supabase
             .from('Staff')
@@ -53,6 +67,7 @@ export function useClientId(): ClientIdData {
             setStaffId(staffData?.id || null);
           }
         }
+        
         setIsLoading(false);
       } catch (err: any) {
         console.error('Error in useClientId:', err);

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -91,58 +90,106 @@ const ClientOnboardingDialog: React.FC<ClientOnboardingDialogProps> = ({
     setIsSubmitting(true);
     
     try {
-      // 1. Create a new client record
-      const { data: clientData, error: clientError } = await supabase
-        .from('Client')
-        .insert({
-          companyName: values.companyName,
-          industry: values.industry || null,
-          websiteUrl: values.website || null,
-          status: 'ACTIVE',
-        })
-        .select('id')
-        .single();
+      let clientId;
       
-      if (clientError) throw clientError;
+      // First, check if this is an existing client based on company name
+      if (serviceRequestData) {
+        const { data: existingClients, error: lookupError } = await supabase
+          .from('Client')
+          .select('id')
+          .eq('companyName', values.companyName)
+          .limit(1);
+        
+        if (lookupError) throw lookupError;
+        
+        // If existing client found, use their ID
+        if (existingClients && existingClients.length > 0) {
+          clientId = existingClients[0].id;
+          console.log('Using existing client ID:', clientId);
+        }
+      }
       
-      // 2. Create a new contact record for the client
-      const { error: contactError } = await supabase
-        .from('Contact')
-        .insert({
-          clientId: clientData.id,
-          firstName: values.firstName,
-          lastName: values.lastName,
-          email: values.email,
-          phone: values.phone || null,
-          isPrimary: true,
-          status: 'ACTIVE',
-        });
-      
-      if (contactError) throw contactError;
+      // Only create a new client if we don't have an existing one
+      if (!clientId) {
+        // 1. Create a new client record
+        const { data: clientData, error: clientError } = await supabase
+          .from('Client')
+          .insert({
+            companyName: values.companyName,
+            industry: values.industry || null,
+            websiteUrl: values.website || null,
+            status: 'ACTIVE',
+          })
+          .select('id')
+          .single();
+        
+        if (clientError) throw clientError;
+        clientId = clientData.id;
+        
+        // 2. Create a new contact record for the client
+        const { error: contactError } = await supabase
+          .from('Contact')
+          .insert({
+            clientId: clientId,
+            firstName: values.firstName,
+            lastName: values.lastName,
+            email: values.email,
+            phone: values.phone || null,
+            isPrimary: true,
+            status: 'ACTIVE',
+          });
+        
+        if (contactError) throw contactError;
+      }
       
       // 3. If this is from a service request, process it
       if (serviceRequestData) {
-        // Update the user role to CLIENT
-        const { error: userError } = await supabase
+        // Check if user already has clientId assigned
+        const { data: userData, error: getUserError } = await supabase
           .from('User')
-          .update({ 
-            role: 'CLIENT',
-            clientId: clientData.id
-          })
-          .eq('id', serviceRequestData.userid);
+          .select('clientId, role')
+          .eq('id', serviceRequestData.userid)
+          .single();
+          
+        if (getUserError) throw getUserError;
         
-        if (userError) throw userError;
+        // Only update user if needed
+        if (!userData.clientId || userData.role !== 'CLIENT') {
+          // Update the user role to CLIENT
+          const { error: userError } = await supabase
+            .from('User')
+            .update({ 
+              role: 'CLIENT',
+              clientId: clientId
+            })
+            .eq('id', serviceRequestData.userid);
+          
+          if (userError) throw userError;
+        }
         
-        // Add the requested service to the client
-        const { error: serviceError } = await supabase
+        // Check if client already has this service
+        const { data: existingService, error: checkServiceError } = await supabase
           .from('ClientService')
-          .insert({
-            clientId: clientData.id,
-            serviceId: serviceRequestData.serviceid,
-            status: 'ACTIVE'
-          });
+          .select('id')
+          .eq('clientId', clientId)
+          .eq('serviceId', serviceRequestData.serviceid)
+          .limit(1);
+          
+        if (checkServiceError) throw checkServiceError;
         
-        if (serviceError) throw serviceError;
+        // Only add service if client doesn't already have it
+        if (!existingService || existingService.length === 0) {
+          // Add the requested service to the client
+          const { error: serviceError } = await supabase
+            .from('ClientService')
+            .insert({
+              clientId: clientId,
+              serviceId: serviceRequestData.serviceid,
+              status: 'ACTIVE'
+            });
+          
+          if (serviceError) throw serviceError;
+        }
         
         // Update the service request status
         const { error: requestError } = await supabase
@@ -157,8 +204,8 @@ const ClientOnboardingDialog: React.FC<ClientOnboardingDialogProps> = ({
       }
       
       toast({
-        title: 'Client onboarded successfully',
-        description: 'The client has been added to the system',
+        title: 'Service request processed successfully',
+        description: serviceRequestData ? 'The service has been added to the client account' : 'The client has been added to the system',
       });
       
       // Reset form and close dialog

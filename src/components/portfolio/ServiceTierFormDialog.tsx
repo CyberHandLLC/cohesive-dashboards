@@ -1,11 +1,12 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogClose,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ServiceTier } from '@/hooks/useServiceTiers';
@@ -40,33 +41,52 @@ interface ServiceTierFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (values: any) => void;
-  initialData?: ServiceTier | null;
-  title: string;
-  serviceId: string;
+  initialValues?: ServiceTier | { serviceId: string } | null;
+  mode?: 'add' | 'edit';
 }
 
 export function ServiceTierFormDialog({
   open,
   onOpenChange,
   onSubmit,
-  initialData,
-  title,
-  serviceId,
+  initialValues,
+  mode = 'add'
 }: ServiceTierFormDialogProps) {
+  const [featureInput, setFeatureInput] = useState('');
+  
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: initialData?.name || '',
-      description: initialData?.description || '',
-      price: initialData?.price || undefined,
-      monthlyPrice: initialData?.monthlyPrice || undefined,
-      features: initialData?.features || [],
-      availability: initialData?.availability || 'ACTIVE',
-      serviceId: serviceId || initialData?.serviceId || '',
+      name: '',
+      description: '',
+      price: undefined,
+      monthlyPrice: undefined,
+      features: [],
+      availability: 'ACTIVE',
+      serviceId: '',
     },
   });
 
-  const [featureInput, setFeatureInput] = React.useState('');
+  // Update form values when initialValues changes or when dialog opens
+  useEffect(() => {
+    if (open && initialValues) {
+      const hasFullData = 'name' in initialValues || 'description' in initialValues;
+      
+      form.reset({
+        name: hasFullData && 'name' in initialValues ? initialValues.name || '' : '',
+        description: hasFullData && 'description' in initialValues ? initialValues.description || '' : '',
+        price: hasFullData && 'price' in initialValues ? initialValues.price : undefined,
+        monthlyPrice: hasFullData && 'monthlyPrice' in initialValues ? initialValues.monthlyPrice : undefined,
+        features: hasFullData && 'features' in initialValues ? initialValues.features || [] : [],
+        availability: hasFullData && 'availability' in initialValues ? initialValues.availability || 'ACTIVE' : 'ACTIVE',
+        serviceId: initialValues.serviceId || '',
+      });
+    } else if (!open) {
+      // Reset form when dialog closes
+      form.reset();
+      setFeatureInput('');
+    }
+  }, [open, initialValues, form]);
   
   const features = form.watch('features') || [];
 
@@ -83,21 +103,29 @@ export function ServiceTierFormDialog({
     form.setValue('features', updatedFeatures);
   };
 
+  const handleCancel = () => {
+    onOpenChange(false);
+  };
+
   const handleSubmit = (values: FormData) => {
     // Ensure features is an array
     const formattedValues = {
       ...values,
       features: values.features || [],
-      serviceId: serviceId
     };
     onSubmit(formattedValues);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[525px]">
+      <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
+          <DialogTitle>{mode === 'add' ? 'Add Service Tier' : 'Edit Service Tier'}</DialogTitle>
+          <DialogDescription>
+            {mode === 'add' 
+              ? 'Create a new tier for this service with pricing and features.' 
+              : 'Modify the details of this service tier.'}
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
@@ -108,7 +136,7 @@ export function ServiceTierFormDialog({
                 <FormItem>
                   <FormLabel>Name</FormLabel>
                   <FormControl>
-                    <Input placeholder="Tier name" {...field} />
+                    <Input placeholder="Service tier name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -121,7 +149,7 @@ export function ServiceTierFormDialog({
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Tier description" {...field} />
+                    <Textarea placeholder="Service tier description" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -135,7 +163,7 @@ export function ServiceTierFormDialog({
                   <FormItem>
                     <FormLabel>Price</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0.00" {...field} value={field.value || ''} />
+                      <Input type="number" placeholder="0.00" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -148,14 +176,13 @@ export function ServiceTierFormDialog({
                   <FormItem>
                     <FormLabel>Monthly Price</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="0.00" {...field} value={field.value || ''} />
+                      <Input type="number" placeholder="0.00" {...field} value={field.value ?? ''} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-            
             <FormField
               control={form.control}
               name="features"
@@ -204,14 +231,14 @@ export function ServiceTierFormDialog({
                 </FormItem>
               )}
             />
-            
+
             <FormField
               control={form.control}
               name="availability"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Availability</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select availability" />
@@ -227,8 +254,24 @@ export function ServiceTierFormDialog({
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="serviceId"
+              render={({ field }) => (
+                <FormItem className="hidden">
+                  <FormControl>
+                    <Input type="hidden" {...field} />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
             <DialogFooter>
-              <Button type="submit">Save</Button>
+              <DialogClose asChild>
+                <Button type="button" variant="outline" onClick={handleCancel}>Cancel</Button>
+              </DialogClose>
+              <Button type="submit">{mode === 'add' ? 'Add' : 'Save'}</Button>
             </DialogFooter>
           </form>
         </Form>

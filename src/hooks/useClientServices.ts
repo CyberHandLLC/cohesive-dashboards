@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { ClientService } from '@/types/client';
@@ -72,6 +71,9 @@ export const useClientServices = (clientId: string | null) => {
   useEffect(() => {
     if (clientId) {
       fetchServices(clientId);
+    } else {
+      // If clientId is null, set loading to false to prevent infinite loading state
+      setIsLoading(false);
     }
   }, [clientId, fetchServices]);
 
@@ -88,7 +90,8 @@ export const useClientServices = (clientId: string | null) => {
           table: 'ClientService'
         },
         (payload) => {
-          if (clientId && payload.new.clientId === clientId) {
+          // Check that payload has the expected structure and clientId matches
+          if (clientId && payload.new && 'clientId' in payload.new && payload.new.clientId === clientId) {
             fetchServices(clientId);
           }
         }
@@ -102,7 +105,7 @@ export const useClientServices = (clientId: string | null) => {
 
   useEffect(() => {
     const cleanup = setupRealTimeSubscriptions();
-    return cleanup;
+    return () => cleanup();
   }, [setupRealTimeSubscriptions]);
 
   const filteredServices = services.filter(service => {

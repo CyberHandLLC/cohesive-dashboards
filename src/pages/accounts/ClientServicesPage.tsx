@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import { Button } from '@/components/ui/button';
 import { 
   Card, 
   CardContent, 
   CardHeader, 
-  CardTitle 
+  CardTitle,
+  CardDescription 
 } from '@/components/ui/card';
 import {
   Table,
@@ -44,7 +45,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Calendar, DollarSign } from 'lucide-react';
+import { Plus, Edit, Trash2, Calendar, DollarSign, BarChart2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useForm } from 'react-hook-form';
 
@@ -89,8 +90,12 @@ interface SubMenuItem {
 const ClientServicesPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { id: clientIdFromParams } = useParams<{ id: string }>(); 
   const queryParams = new URLSearchParams(location.search);
-  const clientIdFromUrl = queryParams.get('clientId');
+  const clientIdFromQuery = queryParams.get('clientId');
+  
+  // Use path parameter if available, otherwise fall back to query parameter
+  const clientId = clientIdFromParams || clientIdFromQuery;
   
   const [clientServices, setClientServices] = useState<ClientService[]>([]);
   const [client, setClient] = useState<Client | null>(null);
@@ -99,14 +104,25 @@ const ClientServicesPage = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState<boolean>(false);
   const [selectedService, setSelectedService] = useState<ClientService | null>(null);
   const [availableServices, setAvailableServices] = useState<Service[]>([]);
+  const [activeTab, setActiveTab] = useState<string>('active');
   const { toast } = useToast();
 
+  // Breadcrumbs for navigation
   const breadcrumbs = [
     { label: 'Admin', href: '/admin' },
     { label: 'Accounts', href: '/admin/accounts' },
     { label: 'Clients', href: '/admin/accounts/clients' },
-    { label: client ? client.companyName : 'Client' },
+    { label: client?.companyName || 'Client', href: `/admin/accounts/clients/${clientId}/overview` },
     { label: 'Services' }
+  ];
+
+  // Updated submenu items using path parameters
+  const subMenuItems: SubMenuItem[] = [
+    { label: 'Overview', href: `/admin/accounts/clients/${clientId}/overview`, value: 'overview' },
+    { label: 'Services', href: `/admin/accounts/clients/${clientId}/services`, value: 'services' },
+    { label: 'Invoices', href: `/admin/accounts/clients/${clientId}/invoices`, value: 'invoices' },
+    { label: 'Support', href: `/admin/accounts/clients/${clientId}/support`, value: 'support' },
+    { label: 'Contacts', href: `/admin/accounts/clients/${clientId}/contacts`, value: 'contacts' },
   ];
 
   const addServiceForm = useForm({
@@ -129,7 +145,7 @@ const ClientServicesPage = () => {
   });
 
   useEffect(() => {
-    if (clientIdFromUrl) {
+    if (clientId) {
       fetchClient();
       fetchClientServices();
       fetchAvailableServices();
@@ -141,16 +157,16 @@ const ClientServicesPage = () => {
         variant: "destructive"
       });
     }
-  }, [clientIdFromUrl]);
+  }, [clientId]);
 
   const fetchClient = async () => {
-    if (!clientIdFromUrl) return;
+    if (!clientId) return;
     
     try {
       const { data, error } = await supabase
         .from('Client')
         .select('id, companyName, status')
-        .eq('id', clientIdFromUrl)
+        .eq('id', clientId)
         .single();
       
       if (error) {
@@ -169,7 +185,7 @@ const ClientServicesPage = () => {
   };
 
   const fetchClientServices = async () => {
-    if (!clientIdFromUrl) return;
+    if (!clientId) return;
     
     setIsLoading(true);
     
@@ -185,7 +201,7 @@ const ClientServicesPage = () => {
             monthlyPrice
           )
         `)
-        .eq('clientId', clientIdFromUrl)
+        .eq('clientId', clientId)
         .order('startDate', { ascending: false });
       
       if (error) {
@@ -228,7 +244,7 @@ const ClientServicesPage = () => {
   };
 
   const handleAddService = async (values: any) => {
-    if (!clientIdFromUrl) return;
+    if (!clientId) return;
     
     try {
       const selectedService = availableServices.find(service => service.id === values.serviceId);
@@ -238,7 +254,7 @@ const ClientServicesPage = () => {
       const { data, error } = await supabase
         .from('ClientService')
         .insert({
-          clientId: clientIdFromUrl,
+          clientId: clientId,
           serviceId: values.serviceId,
           startDate: values.startDate,
           endDate: values.endDate || null,
@@ -390,13 +406,88 @@ const ClientServicesPage = () => {
     }
   };
 
-  const subMenuItems: SubMenuItem[] = [
-    { label: "Overview", href: `/admin/accounts/clients?clientId=${clientIdFromUrl}`, value: "overview" },
-    { label: "Services", href: `/admin/accounts/clients/services?clientId=${clientIdFromUrl}`, value: "services" },
-    { label: "Invoices", href: `/admin/accounts/clients/invoices?clientId=${clientIdFromUrl}`, value: "invoices" },
-    { label: "Support Tickets", href: `/admin/accounts/clients/support?clientId=${clientIdFromUrl}`, value: "support" },
-    { label: "Contacts", href: `/admin/accounts/clients/contacts?clientId=${clientIdFromUrl}`, value: "contacts" }
-  ];
+  const renderServicesTable = (statusArray: string[]) => {
+    const filteredServices = clientServices.filter(service => 
+      statusArray.includes(service.status.toUpperCase())
+    );
+    
+    if (isLoading) {
+      return (
+        <div className="flex justify-center items-center p-6">
+          <p>Loading services...</p>
+        </div>
+      );
+    }
+    
+    if (filteredServices.length === 0) {
+      return (
+        <div className="flex justify-center items-center p-6">
+          <p>No services found with this status.</p>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="rounded-md border">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Service</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Start Date</TableHead>
+              <TableHead>End Date</TableHead>
+              <TableHead>Price</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredServices.map(service => (
+              <TableRow key={service.id}>
+                <TableCell className="font-medium">{service.service.name}</TableCell>
+                <TableCell>
+                  <Badge variant={
+                    service.status === 'ACTIVE' ? 'success' : 
+                    service.status === 'PENDING' ? 'warning' : 
+                    'destructive'
+                  }>
+                    {service.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{new Date(service.startDate).toLocaleDateString()}</TableCell>
+                <TableCell>
+                  {service.endDate ? new Date(service.endDate).toLocaleDateString() : 'Not set'}
+                </TableCell>
+                <TableCell>
+                  {service.price ? formatCurrency(service.price) : 
+                    (service.service.price ? formatCurrency(service.service.price) : 'N/A')}
+                </TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button variant="ghost" size="sm" onClick={() => openEditDialog(service)}>
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => handleDeleteService(service.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to={`/admin/accounts/clients/${clientId}/service-dashboard/${service.id}`}>
+                        <BarChart2 className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link to={`/admin/accounts/clients/${clientId}/services/${service.id}/lifecycle`}>
+                        <Calendar className="h-4 w-4" />
+                      </Link>
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  };
 
   return (
     <DashboardLayout 
@@ -419,7 +510,7 @@ const ClientServicesPage = () => {
             <CardTitle className="text-lg">Subscribed Services</CardTitle>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="active" className="w-full">
+            <Tabs defaultValue="active" className="w-full" onValueChange={setActiveTab}>
               <TabsList className="grid w-full grid-cols-3 mb-4">
                 <TabsTrigger value="active">Active</TabsTrigger>
                 <TabsTrigger value="pending">Pending</TabsTrigger>
@@ -642,80 +733,6 @@ const ClientServicesPage = () => {
       </Dialog>
     </DashboardLayout>
   );
-
-  function renderServicesTable(statusArray: string[]) {
-    const filteredServices = clientServices.filter(service => 
-      statusArray.includes(service.status.toUpperCase())
-    );
-    
-    return isLoading ? (
-      <div className="flex justify-center py-8">
-        <p>Loading services...</p>
-      </div>
-    ) : (
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Service</TableHead>
-              <TableHead>Price</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Start Date</TableHead>
-              <TableHead>End Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredServices.length > 0 ? (
-              filteredServices.map((serviceItem) => (
-                <TableRow key={serviceItem.id}>
-                  <TableCell className="font-medium">{serviceItem.service.name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <DollarSign className="h-4 w-4 mr-1 text-muted-foreground" />
-                      {formatCurrency(serviceItem.price)}
-                    </div>
-                  </TableCell>
-                  <TableCell>{getServiceStatusBadge(serviceItem.status)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
-                      {formatDate(serviceItem.startDate)}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {serviceItem.endDate && (
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
-                        {formatDate(serviceItem.endDate)}
-                      </div>
-                    )}
-                    {!serviceItem.endDate && 'Ongoing'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(serviceItem)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => handleDeleteService(serviceItem.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                  No {statusArray.join(', ').toLowerCase()} services found
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </div>
-    );
-  }
 };
 
 export default ClientServicesPage;

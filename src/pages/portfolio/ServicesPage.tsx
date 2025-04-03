@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Filter } from 'lucide-react';
 import { useServices } from '@/hooks/useServices';
@@ -258,25 +257,25 @@ const ServicesPage = () => {
       role="admin"
     >
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl font-bold">
               Services Management
               {selectedCategoryName && (
-                <span className="text-muted-foreground text-lg ml-2">
-                  — {selectedCategoryName}
+                <span className="block sm:inline text-muted-foreground text-lg sm:ml-2">
+                  {selectedCategoryName && `— ${selectedCategoryName}`}
                 </span>
               )}
             </h1>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 w-full sm:w-auto justify-end">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline">
+                <Button variant="outline" className="w-full sm:w-auto">
                   <Filter className="mr-2 h-4 w-4" /> Filter
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuItem onClick={() => navigate('/admin/portfolio/services')}>
                   All Categories
                 </DropdownMenuItem>
@@ -291,7 +290,7 @@ const ServicesPage = () => {
               </DropdownMenuContent>
             </DropdownMenu>
             
-            <Button onClick={() => setIsAddDialogOpen(true)}>
+            <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
               <Plus className="mr-2 h-4 w-4" /> Add Service
             </Button>
           </div>
@@ -300,28 +299,37 @@ const ServicesPage = () => {
         <Card>
           <CardHeader>
             <CardTitle>Services</CardTitle>
+            {selectedCategoryName && (
+              <CardDescription>
+                Showing services in the "{selectedCategoryName}" category
+              </CardDescription>
+            )}
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="py-6 text-center text-muted-foreground">Loading services...</div>
+              <div className="flex justify-center py-8">
+                <p>Loading services...</p>
+              </div>
             ) : (
-              <ServicesTable 
-                services={services || []} 
-                tiers={loadedTiers}
-                clientCounts={clientCounts}
-                tierClientCounts={tierClientCounts}
-                loadingTiers={loadingTiers}
-                onEdit={(service) => setEditingService(service)} 
-                onDelete={handleDeleteService}
-                onAddTier={handleAddTier}
-                onEditTier={handleEditTier}
-                onDeleteTier={handleDeleteTier}
-                searchQuery={searchTerm}
-                onSearchChange={setSearchTerm}
-                onClientUsageClick={handleClientUsageClick}
-                onTierClientUsageClick={handleTierClientUsageClick}
-                onServiceExpand={handleServiceExpand}
-              />
+              <div className="overflow-x-auto">
+                <ServicesTable 
+                  services={services || []} 
+                  tiers={loadedTiers}
+                  clientCounts={clientCounts}
+                  tierClientCounts={tierClientCounts}
+                  loadingTiers={loadingTiers}
+                  onEdit={(service) => setEditingService(service)} 
+                  onDelete={handleDeleteService}
+                  onAddTier={handleAddTier}
+                  onEditTier={handleEditTier}
+                  onDeleteTier={handleDeleteTier}
+                  searchQuery={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  onClientUsageClick={handleClientUsageClick}
+                  onTierClientUsageClick={handleTierClientUsageClick}
+                  onServiceExpand={handleServiceExpand}
+                />
+              </div>
             )}
           </CardContent>
         </Card>
